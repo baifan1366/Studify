@@ -147,6 +147,15 @@ export async function POST(request: NextRequest) {
           .from("course_order")
           .update({ status: "paid" })
           .eq("public_id", orderId);
+        if (session.metadata.pointsRedemptionId) {
+          await supabase.from("point_redemption").update({
+            order_id: order.id,
+            status: "completed",
+            completion_date: new Date().toISOString(),
+            cash_paid_cents: order.total_cents,
+          }).eq("id", Number(session.metadata.pointsRedemptionId))
+            .eq("status", "reserved");
+        }
 
         // Get course and user details
         const { data: course } = await supabase
@@ -217,6 +226,32 @@ export async function POST(request: NextRequest) {
           await handleTutorEarnings(supabase, course, order, session);
         }
 
+        break;
+      }
+
+      case "checkout.session.expired": {
+        const session = event.data.object;
+        const redemptionId = Number(session.metadata?.pointsRedemptionId || 0);
+        if (redemptionId > 0) {
+          const { data: redemption } = await supabase
+            .from("point_redemption")
+            .select("id, user_id, points_spent, status")
+            .eq("id", redemptionId)
+            .maybeSingle();
+          if (redemption?.status === "reserved") {
+            await supabase.from("point_redemption").update({
+              status: "failed",
+              failure_reason: "Checkout expired",
+              updated_at: new Date().toISOString(),
+            }).eq("id", redemption.id).eq("status", "reserved");
+            await supabase.from("community_points_ledger").insert({
+              user_id: redemption.user_id,
+              points: redemption.points_spent,
+              reason: "Course points discount refund",
+              ref: { type: "course_points_refund", redemption_id: redemption.id },
+            });
+          }
+        }
         break;
       }
 

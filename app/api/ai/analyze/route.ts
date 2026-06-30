@@ -34,6 +34,10 @@ export async function POST(request: NextRequest) {
     if (authResult instanceof NextResponse) {
       return authResult;
     }
+    const profileId = authResult.user.profile?.id;
+    if (!profileId) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
 
     // Handle both JSON and FormData (for image uploads)
     let validatedData;
@@ -102,7 +106,7 @@ export async function POST(request: NextRequest) {
       content,
       analysisType,
       {
-        userId: parseInt(authResult.payload.sub),
+        userId: Number(profileId),
         includeRecommendations,
         imageUrl,
         learningGoal,

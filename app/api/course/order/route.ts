@@ -5,6 +5,7 @@ import { authorize } from '@/utils/auth/server-guard';
 import { handleStudentEnrollmentFlow } from '@/lib/auto-creation/student-enrollment-flow';
 
 export async function POST(request: NextRequest) {
+  let reservedRedemptionId: number | null = null;
   try {
     const authResult = await authorize('student');
     if (authResult instanceof NextResponse) {
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     const user = authResult.user;
     
-    const { courseId, successUrl, cancelUrl } = await request.json();
+    const { courseId, successUrl, cancelUrl, usePoints = false } = await request.json();
 
     if (!courseId) {
       return NextResponse.json(
@@ -68,19 +69,49 @@ export async function POST(request: NextRequest) {
     }
 
 
+    let checkoutPriceCents = course.price_cents || 0;
+    let pointsRedemption: any = null;
+
+    if (usePoints && checkoutPriceCents > 0) {
+      const { data: redemption, error: redemptionError } = await supabase.rpc(
+        'reserve_course_points_discount',
+        { p_course_id: course.id }
+      );
+      if (redemptionError || redemption?.error) {
+        return NextResponse.json(
+          { error: redemption?.error || redemptionError?.message || 'Could not apply points' },
+          { status: redemption?.error === 'Insufficient points' ? 409 : 400 }
+        );
+      }
+      pointsRedemption = redemption;
+      reservedRedemptionId = redemption.redemption_id;
+      checkoutPriceCents = redemption.cash_due_cents;
+    }
+
     // Create course order
     const { data: order, error: orderError } = await supabase
       .from('course_order')
       .insert({
         buyer_id: profileId,
-        total_cents: course.price_cents || 0,
+        total_cents: checkoutPriceCents,
         currency: course.currency || 'MYR',
-        status: 'pending'
+        status: 'pending',
+        meta: pointsRedemption ? {
+          points_redemption_id: pointsRedemption.redemption_id,
+          points_spent: pointsRedemption.points_spent,
+          discount_cents: pointsRedemption.discount_cents,
+          original_price_cents: pointsRedemption.original_price_cents,
+        } : {}
       })
       .select()
       .single();
 
     if (orderError || !order) {
+      if (pointsRedemption) {
+        await supabase.rpc('refund_reserved_course_points', {
+          p_redemption_id: pointsRedemption.redemption_id,
+        });
+      }
       console.error('Order creation error:', orderError);
       return NextResponse.json(
         { error: `Failed to create order: ${orderError?.message || 'Unknown error'}` },
@@ -112,6 +143,9 @@ export async function POST(request: NextRequest) {
 
       if (productError) {
         console.error('Product creation error:', productError);
+        if (pointsRedemption) await supabase.rpc('refund_reserved_course_points', {
+          p_redemption_id: pointsRedemption.redemption_id,
+        });
         return NextResponse.json(
           { error: `Failed to create product: ${productError?.message || 'Unknown error'}` },
           { status: 500 }
@@ -127,12 +161,15 @@ export async function POST(request: NextRequest) {
         order_id: order.id,
         product_id: product.id,
         quantity: 1,
-        unit_price_cents: product.price_cents,
-        subtotal_cents: product.price_cents
+        unit_price_cents: checkoutPriceCents,
+        subtotal_cents: checkoutPriceCents
       });
 
     if (orderItemError) {
       console.error('Order item creation error:', orderItemError);
+      if (pointsRedemption) await supabase.rpc('refund_reserved_course_points', {
+        p_redemption_id: pointsRedemption.redemption_id,
+      });
       return NextResponse.json(
         { error: `Failed to create order item: ${orderItemError?.message || 'Unknown error'}` },
         { status: 500 }
@@ -140,16 +177,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle free courses
-    if ((course.price_cents || 0) === 0 || course.is_free) {
+    if (checkoutPriceCents === 0 || course.is_free) {
       // Directly enroll user for free courses (profileId already obtained above)
-      const { error: enrollmentError } = await supabase
+      const { data: existingAfterRedemption } = await supabase
         .from('course_enrollment')
-        .insert({
-          course_id: course.id,
-          user_id: profileId,
-          role: 'student',
-          status: 'active'
-        });
+        .select('id')
+        .eq('course_id', course.id)
+        .eq('user_id', profileId)
+        .maybeSingle();
+      const { error: enrollmentError } = existingAfterRedemption
+        ? { error: null }
+        : await supabase.from('course_enrollment').insert({
+            course_id: course.id,
+            user_id: profileId,
+            role: 'student',
+            status: 'active'
+          });
 
       if (enrollmentError) {
         console.error('Enrollment error:', enrollmentError);
@@ -164,6 +207,13 @@ export async function POST(request: NextRequest) {
         .from('course_order')
         .update({ status: 'paid' })
         .eq('id', order.id);
+      if (pointsRedemption) {
+        await supabase.from('point_redemption').update({
+          order_id: order.id,
+          status: 'completed',
+          completion_date: new Date().toISOString(),
+        }).eq('id', pointsRedemption.redemption_id);
+      }
 
       // After enrollment, handle complete auto-creation flow
       console.log("[Order] User enrolled successfully, starting auto-creation flow");
@@ -229,18 +279,25 @@ export async function POST(request: NextRequest) {
               description: course.description || '',
               images: course.thumbnail_url ? [course.thumbnail_url] : [],
             },
-            unit_amount: course.price_cents || 0,
+            unit_amount: checkoutPriceCents,
           },
           quantity: 1,
         },
       ],
       mode: 'payment',
+      payment_intent_data: {
+        metadata: {
+          orderId: order.public_id,
+          pointsRedemptionId: pointsRedemption?.redemption_id?.toString() || '',
+        },
+      },
       success_url: successUrl ? successUrl.replace('{courseSlug}', course.slug) : finalSuccessUrl,
       cancel_url: cancelUrl ? cancelUrl.replace('{courseSlug}', course.slug) : finalCancelUrl,
       metadata: {
         orderId: order.public_id,
         courseId: course.public_id,
         userId: user.profile?.public_id || user.id,
+        pointsRedemptionId: pointsRedemption?.redemption_id?.toString() || '',
       },
     });
 
@@ -251,18 +308,32 @@ export async function POST(request: NextRequest) {
         order_id: order.id,
         provider: 'stripe',
         provider_ref: session.id,
-        amount_cents: course.price_cents || 0,
+        amount_cents: checkoutPriceCents,
         status: 'pending'
       });
 
     return NextResponse.json({
       success: true,
       checkoutUrl: session.url,
-      orderId: order.public_id
+      orderId: order.public_id,
+      pointsApplied: pointsRedemption ? {
+        pointsSpent: pointsRedemption.points_spent,
+        discountCents: pointsRedemption.discount_cents,
+      } : undefined
     });
 
   } catch (error) {
     console.error('Course order error:', error);
+    if (reservedRedemptionId) {
+      try {
+        const refundClient = await createClient();
+        await refundClient.rpc('refund_reserved_course_points', {
+          p_redemption_id: reservedRedemptionId,
+        });
+      } catch (refundError) {
+        console.error('Failed to refund reserved course points:', refundError);
+      }
+    }
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

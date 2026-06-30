@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface PurchaseCourseData {
   courseId: string;
+  usePoints?: boolean;
   successUrl?: string;
   cancelUrl?: string;
 }

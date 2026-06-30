@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     // Non-streaming response
     const startTime = Date.now();
     const result = await enhancedAIExecutor.educationalQA(question, {
-      userId: parseInt(authResult.payload.sub),
+      userId: Number(userId),
       contentTypes,
       includeAnalysis,
       conversationContext: context?.map(c => ({ role: c.role, content: c.content })),
@@ -354,9 +354,10 @@ async function handleStreamingResponse(
             await apiKeyManager.recordUsage(keyName, true);
           }
 
-          // Save messages to session (fire-and-forget)
+          // Await persistence so serverless runtimes cannot terminate before
+          // the conversation history is written.
           if (sessionId && userId && answerContent) {
-            (async () => {
+            await (async () => {
               try {
                 // Resolve sessionId (UUID) to numeric session_id
                 const { data: session, error: sessionError } = await supabase
@@ -374,7 +375,7 @@ async function handleStreamingResponse(
                 const numericSessionId = session.id;
 
                 // Save user message
-                await supabase
+                const { error: userMessageError } = await supabase
                   .from('ai_quick_qa_messages')
                   .insert({
                     session_id: numericSessionId,
@@ -382,9 +383,10 @@ async function handleStreamingResponse(
                     content: question,
                     ai_mode: aiMode
                   });
+                if (userMessageError) throw userMessageError;
 
                 // Save assistant message
-                await supabase
+                const { error: assistantMessageError } = await supabase
                   .from('ai_quick_qa_messages')
                   .insert({
                     session_id: numericSessionId,
@@ -394,12 +396,14 @@ async function handleStreamingResponse(
                     reasoning_details: reasoningDetails.length > 0 ? reasoningDetails : null,
                     ai_mode: aiMode
                   });
+                if (assistantMessageError) throw assistantMessageError;
 
                 // Update session updated_at
-                await supabase
+                const { error: sessionUpdateError } = await supabase
                   .from('ai_quick_qa_sessions')
                   .update({ updated_at: new Date().toISOString() })
                   .eq('id', numericSessionId);
+                if (sessionUpdateError) throw sessionUpdateError;
 
                 console.log(`💾 Messages saved to session ${sessionId}`);
               } catch (saveError) {

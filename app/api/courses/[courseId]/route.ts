@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/utils/supabase/server";
+import { authorize } from "@/utils/auth/server-guard";
 
 // GET /api/courses/[courseId] - fetch single course by public_id or slug
 export async function GET(_: Request, { params }: { params: Promise<{ courseId: string }> }) {
@@ -25,6 +26,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ courseId: 
 // PATCH /api/courses/[courseId] - update by public_id or slug
 export async function PATCH(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
   try {
+    const authResult = await authorize(["tutor", "admin"]);
+    if (authResult instanceof NextResponse) return authResult;
     const body = await req.json();
     const client = await createServerClient();
     const { courseId } = await params;
@@ -33,13 +36,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
     // Check current course status first
     const { data: currentCourse, error: fetchError } = await client
       .from("course")
-      .select("status")
+      .select("status, owner_id")
       .eq("id", courseIdNum)
       .eq("is_deleted", false)
       .single();
 
     if (fetchError) {
       return NextResponse.json({ error: fetchError.message }, { status: 404 });
+    }
+    if (authResult.user.profile?.role !== "admin" && currentCourse.owner_id !== authResult.user.profile?.id) {
+      return NextResponse.json({ error: "You do not own this course" }, { status: 403 });
     }
 
     // Only allow edits if course status is 'inactive'
@@ -101,6 +107,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
             .from("course_point_price")
             .update({
               point_price: parseInt(body.point_price),
+              discount_pct: Math.min(100, Math.max(1, Number(body.point_discount_pct || 100))),
               is_active: true,
               updated_at: new Date().toISOString()
             })
@@ -112,6 +119,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
             .insert([{
               course_id: courseIdNum,
               point_price: parseInt(body.point_price),
+              discount_pct: Math.min(100, Math.max(1, Number(body.point_discount_pct || 100))),
               is_active: true
             }]);
         }

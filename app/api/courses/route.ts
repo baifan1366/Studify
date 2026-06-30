@@ -15,7 +15,7 @@ export async function GET(req: Request) {
         .from("course")
         .select(`
           *,
-          course_point_price!left(point_price, is_active)
+          course_point_price!left(point_price, discount_pct, is_active)
         `)
         .eq("is_deleted", false)
         .eq("owner_id", parseInt(owner_id))
@@ -32,6 +32,7 @@ export async function GET(req: Request) {
         return {
           ...course,
           point_price: activePointPrice?.point_price || null,
+          point_discount_pct: activePointPrice?.discount_pct ? Number(activePointPrice.discount_pct) : null,
           course_point_price: undefined // Remove the nested array
         };
       });
@@ -44,7 +45,7 @@ export async function GET(req: Request) {
         .from("course")
         .select(`
           *,
-          course_point_price!left(point_price, is_active)
+          course_point_price!left(point_price, discount_pct, is_active)
         `)
         .eq("is_deleted", false)
         .eq("slug", slug)
@@ -60,6 +61,7 @@ export async function GET(req: Request) {
       const transformedData = {
         ...data,
         point_price: activePointPrice?.point_price || null,
+        point_discount_pct: activePointPrice?.discount_pct ? Number(activePointPrice.discount_pct) : null,
         course_point_price: undefined // Remove the nested array
       };
 
@@ -79,7 +81,7 @@ export async function GET(req: Request) {
           .from("course")
           .select(`
             *,
-            course_point_price!left(point_price, is_active)
+            course_point_price!left(point_price, discount_pct, is_active)
           `)
           .eq("is_deleted", false)
           .eq("owner_id", profile.id)
@@ -96,6 +98,7 @@ export async function GET(req: Request) {
           return {
             ...course,
             point_price: activePointPrice?.point_price || null,
+            point_discount_pct: activePointPrice?.discount_pct ? Number(activePointPrice.discount_pct) : null,
             course_point_price: undefined // Remove the nested array
           };
         });
@@ -109,7 +112,7 @@ export async function GET(req: Request) {
       .from("course")
       .select(`
         *,
-        course_point_price!left(point_price, is_active)
+        course_point_price!left(point_price, discount_pct, is_active)
       `)
       .eq("is_deleted", false)
       .eq("visibility", "public")
@@ -127,6 +130,7 @@ export async function GET(req: Request) {
       return {
         ...course,
         point_price: activePointPrice?.point_price || null,
+        point_discount_pct: activePointPrice?.discount_pct ? Number(activePointPrice.discount_pct) : null,
         course_point_price: undefined // Remove the nested array
       };
     });
@@ -143,13 +147,15 @@ export async function GET(req: Request) {
 // POST /api/courses - create a new course
 export async function POST(req: Request) {
   try {
+    const authResult = await authorize(["tutor", "admin"]);
+    if (authResult instanceof NextResponse) return authResult;
     const body = await req.json();
     const client = await createServerClient();
 
-    // Require owner_id explicitly until auth->profiles mapping is clarified
-    if (!body.owner_id) {
+    const ownerId = authResult.user.profile?.id;
+    if (!ownerId) {
       return NextResponse.json(
-        { error: "owner_id is required" },
+        { error: "Tutor profile is required" },
         { status: 422 }
       );
     }
@@ -169,7 +175,7 @@ export async function POST(req: Request) {
       average_rating: body.average_rating ?? 0,
       total_students: body.total_students ?? 0,
       is_free: !!body.is_free,
-      owner_id: parseInt(body.owner_id),
+      owner_id: ownerId,
       video_intro_url: body.video_intro_url ?? null,
       requirements: Array.isArray(body.requirements) ? body.requirements : [],
       learning_objectives: Array.isArray(body.learning_objectives)
@@ -202,12 +208,13 @@ export async function POST(req: Request) {
     }
 
     // If point_price is provided, create course_point_price entry
-    if (body.point_price && body.point_price > 0) {
+    if (body.point_price && body.point_price > 0 && body.point_discount_pct > 0) {
       const { error: pointPriceError } = await client
         .from("course_point_price")
         .insert([{
           course_id: data.id,
           point_price: parseInt(body.point_price),
+          discount_pct: Math.min(100, Math.max(1, Number(body.point_discount_pct))),
           is_active: true
         }]);
 

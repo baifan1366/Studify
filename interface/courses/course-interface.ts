@@ -36,6 +36,7 @@ export interface Course {
   // Pricing
   is_free?: boolean;
   point_price?: number | null; // Points required to redeem this course
+  point_discount_pct?: number | null; // Cash discount unlocked by point_price
   
   // Auto-creation flags
   auto_create_classroom?: boolean;

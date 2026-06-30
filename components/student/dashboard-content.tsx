@@ -48,6 +48,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import Mermaid from "@/components/ui/mermaid";
+import { ReactFlowMindMap } from "@/components/ai/react-flow-mind-map";
 import {
   Dialog,
   DialogContent,
@@ -500,11 +501,15 @@ export default function DashboardContent() {
                               <Clock className="h-2.5 w-2.5 mr-1" />{path.time_constraint}
                             </Badge>
                           </div>
-                          {path.mermaid_diagram && (
+                          {(path.mind_map?.nodes?.length || path.mermaid_diagram) && (
                             <div className="mt-3 p-2.5 rounded-lg bg-white/5 border border-white/5">
                               <p className="text-[10px] text-muted-foreground/60 mb-1">{t("learning_path_preview")}</p>
                               <div className="max-h-28 overflow-hidden relative">
-                                <Mermaid chart={path.mermaid_diagram} className="w-full scale-75 origin-top-left" />
+                                {path.mind_map?.nodes?.length ? (
+                                  <ReactFlowMindMap graph={path.mind_map as any} className="h-28" />
+                                ) : (
+                                  <Mermaid chart={path.mermaid_diagram} className="w-full scale-75 origin-top-left" />
+                                )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-white/10 to-transparent pointer-events-none" />
                               </div>
                               <p className="text-[10px] text-muted-foreground/50 mt-1 flex items-center gap-1">
@@ -696,11 +701,15 @@ export default function DashboardContent() {
                 <Badge className="bg-pink-500/15 text-pink-300 border-pink-500/25"><Clock className="h-3 w-3 mr-1" />{selectedLearningPath.time_constraint}</Badge>
               </div>
 
-              {selectedLearningPath.mermaid_diagram && (
+              {(selectedLearningPath.mind_map?.nodes?.length || selectedLearningPath.mermaid_diagram) && (
                 <div className="p-5 rounded-xl border border-white/10 bg-white/5">
                   <h4 className="text-sm font-medium text-muted-foreground mb-3">{t("complete_learning_path")}</h4>
                   <div className="bg-white/90 rounded-lg p-5 overflow-x-auto">
-                    <Mermaid chart={selectedLearningPath.mermaid_diagram} className="w-full min-h-[400px]" />
+                    {selectedLearningPath.mind_map?.nodes?.length ? (
+                      <ReactFlowMindMap graph={selectedLearningPath.mind_map as any} className="h-[520px]" />
+                    ) : (
+                      <Mermaid chart={selectedLearningPath.mermaid_diagram} className="w-full min-h-[400px]" />
+                    )}
                   </div>
                 </div>
               )}

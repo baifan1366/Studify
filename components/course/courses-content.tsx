@@ -20,7 +20,6 @@ import { usePurchaseCourse } from "@/hooks/course/use-course-purchase";
 import { useUser } from "@/hooks/profile/use-user";
 import {
   usePointsData,
-  useRedeemCourse,
 } from "@/hooks/profile/use-learning-stats";
 import {
   useProfileCurrency,
@@ -80,7 +79,6 @@ export default function CoursesContent() {
   const updateProfileCurrency = useUpdateProfileCurrency();
   const { toast } = useToast();
   const purchaseCourse = usePurchaseCourse();
-  const redeemCourse = useRedeemCourse();
   const [buyingCourseId, setBuyingCourseId] = useState<string | number | null>(null);
   const [redeemingCourseId, setRedeemingCourseId] = useState<string | number | null>(null);
   const t = useTranslations("CoursesContent");
@@ -148,11 +146,9 @@ export default function CoursesContent() {
         }
       }
 
-      // Get actual point price from database or fallback to calculated value
-      const pointPrice =
-        c.point_price || Math.max(100, Math.floor((c.price_cents || 0) / 10));
-      // Show points redemption for all paid courses (not just those with explicit point_price)
-      const hasPointPrice = !!(c.price_cents && c.price_cents > 0);
+      const pointPrice = c.point_price || 0;
+      const pointDiscountPct = Number(c.point_discount_pct || 0);
+      const hasPointPrice = pointPrice > 0 && pointDiscountPct > 0;
 
       return {
         id: c.public_id,
@@ -169,6 +165,7 @@ export default function CoursesContent() {
         sourceCurrency: courseCurrency, // Store original currency
         isFree: !c.price_cents || c.price_cents === 0,
         points: pointPrice,
+        pointDiscountPct,
         pointsAvailable: hasPointPrice, // Show points redemption for all paid courses
         thumbnailUrl: c.thumbnail_url,
         level: c.level || "beginner",
@@ -220,22 +217,14 @@ export default function CoursesContent() {
 
     setRedeemingCourseId(courseId);
     try {
-      // Convert course.id back to numeric courseId for API
-      const numericCourseId = courses?.find(
-        (c) => c.public_id === courseId
-      )?.id;
-
-      if (!numericCourseId) {
-        throw new Error("Course not found");
-      }
-
-      const result = await redeemCourse.mutateAsync({
-        courseId: numericCourseId,
+      await purchaseCourse.mutateAsync({
+        courseId: String(courseId),
+        usePoints: true,
       });
 
       toast({
-        title: t("redemption_successful"),
-        description: t("course_redeemed_with_points", { points: pointsNeeded }),
+        title: "Points discount applied",
+        description: "Your points are reserved and the discounted checkout is ready.",
       });
     } catch (error: any) {
       toast({
@@ -788,7 +777,7 @@ export default function CoursesContent() {
                                   ? t("insufficient_points_short")
                                   : t("redeem_with_points", {
                                       points: course.points,
-                                    })}
+                                    }) + ` · ${course.pointDiscountPct}% off`}
                               </span>
                             </Button>
                           )}

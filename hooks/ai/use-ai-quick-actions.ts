@@ -127,7 +127,8 @@ export function useAIQuickQAStream() {
       });
 
       if (!response.ok) {
-        throw new Error('Stream request failed');
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.message || body?.error || `Stream request failed (${response.status})`);
       }
 
       const reader = response.body?.getReader();
@@ -138,12 +139,18 @@ export function useAIQuickQAStream() {
       }
 
       let buffer = ''; // Buffer for incomplete SSE data
+      let completed = false;
+      const completeOnce = () => {
+        if (completed) return;
+        completed = true;
+        callbacks.onComplete?.();
+      };
 
       while (true) {
         const { done, value } = await reader.read();
         
         if (done) {
-          callbacks.onComplete?.();
+          completeOnce();
           break;
         }
 
@@ -172,31 +179,32 @@ export function useAIQuickQAStream() {
                 continue;
               }
               
+              let data: any;
               try {
-                const data = JSON.parse(dataStr);
-                
-                switch (data.type) {
-                  case 'thinking':
-                  case 'thinking_start':
-                    callbacks.onThinking?.(data.content);
-                    break;
-                  case 'answer':
-                  case 'answer_start':
-                    callbacks.onAnswer?.(data.content);
-                    break;
-                  case 'reasoning_details':
-                    callbacks.onReasoningDetails?.(data.content);
-                    break;
-                  case 'error':
-                    throw new Error(data.content);
-                  case 'done':
-                    callbacks.onComplete?.();
-                    break;
-                }
-              } catch (parseError) {
+                data = JSON.parse(dataStr);
+              } catch {
                 // Skip malformed JSON (likely incomplete)
                 console.debug('Skipping incomplete SSE data');
                 continue;
+              }
+
+              switch (data.type) {
+                case 'thinking':
+                case 'thinking_start':
+                  callbacks.onThinking?.(data.content);
+                  break;
+                case 'answer':
+                case 'answer_start':
+                  callbacks.onAnswer?.(data.content);
+                  break;
+                case 'reasoning_details':
+                  callbacks.onReasoningDetails?.(data.content);
+                  break;
+                case 'error':
+                  throw new Error(data.content || 'AI streaming failed');
+                case 'done':
+                  completeOnce();
+                  break;
               }
             }
           }

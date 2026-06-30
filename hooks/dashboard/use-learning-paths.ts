@@ -11,6 +11,10 @@ export interface LearningPath {
   current_level: string;
   time_constraint: string;
   mermaid_diagram: string;
+  mind_map?: {
+    nodes: Array<Record<string, unknown>>;
+    edges: Array<Record<string, unknown>>;
+  } | null;
   roadmap: any[];
   recommended_courses: any[];
   quiz_suggestions: any[];

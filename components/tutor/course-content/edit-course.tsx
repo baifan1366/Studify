@@ -58,6 +58,7 @@ export default function EditCourse({ course, children, isOpen: externalIsOpen, o
     const [totalLessons, setTotalLessons] = useState<number | undefined>();
     const [totalDurationMinutes, setTotalDurationMinutes] = useState<number | undefined>();
     const [pointPrice, setPointPrice] = useState<number | undefined>();
+    const [pointDiscountPct, setPointDiscountPct] = useState(10);
     const [enablePointRedemption, setEnablePointRedemption] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -92,6 +93,7 @@ export default function EditCourse({ course, children, isOpen: externalIsOpen, o
             setTotalLessons(course.total_lessons);
             setTotalDurationMinutes(course.total_duration_minutes);
             setPointPrice((course as any).point_price || undefined);
+            setPointDiscountPct(Number((course as any).point_discount_pct || 10));
             setEnablePointRedemption(!!((course as any).point_price));
         }
     }, [course]);
@@ -165,7 +167,8 @@ export default function EditCourse({ course, children, isOpen: externalIsOpen, o
             await updateCourseMutation.mutateAsync({
                 id: course.id,
                 ...formData,
-                point_price: enablePointRedemption ? pointPrice : undefined
+                point_price: enablePointRedemption ? pointPrice : undefined,
+                point_discount_pct: enablePointRedemption ? pointDiscountPct : undefined
             });
             
             toast({
@@ -574,8 +577,9 @@ export default function EditCourse({ course, children, isOpen: externalIsOpen, o
                                     </div>
 
                                     {enablePointRedemption && (
-                                        <div className="grid w-full items-center gap-1.5 ml-6">
-                                            <Label htmlFor="point_price" className="text-foreground">{t('point_price')}</Label>
+                                        <div className="ml-6 grid gap-4 sm:grid-cols-2">
+                                          <div className="grid w-full items-center gap-1.5">
+                                            <Label htmlFor="point_price" className="text-foreground">Points required</Label>
                                             <Input
                                                 type="number"
                                                 id="point_price"
@@ -589,6 +593,16 @@ export default function EditCourse({ course, children, isOpen: externalIsOpen, o
                                                 {t('point_price_description')}
                                             </p>
                                             {errors.point_price && <span className="text-xs text-destructive">{errors.point_price}</span>}
+                                          </div>
+                                          <div className="grid w-full items-center gap-1.5">
+                                            <Label htmlFor="point_discount_pct">Course discount (%)</Label>
+                                            <Input type="number" id="point_discount_pct" min="1" max="100" value={pointDiscountPct}
+                                              onChange={(e) => setPointDiscountPct(Math.min(100, Math.max(1, parseInt(e.target.value) || 1)))} />
+                                            <p className="text-xs text-muted-foreground">
+                                              Student pays {100 - pointDiscountPct}%. Platform fee is 10% of cash paid; your estimated payout is {formatPrice(Math.round(priceCents * (1 - pointDiscountPct / 100) * 0.9), currency, false)}.
+                                              {pointDiscountPct === 100 && " Full redemption collects no cash, so tutor payout is 0."}
+                                            </p>
+                                          </div>
                                         </div>
                                     )}
                                 </div>

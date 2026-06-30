@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
         current_level: learningPath.currentLevel,
         time_constraint: learningPath.timeConstraint,
         mermaid_diagram: learningPath.mermaidDiagram,
+        mind_map: learningPath.mindMap || null,
         roadmap: learningPath.roadmap,
         recommended_courses: learningPath.recommendedCourses,
         quiz_suggestions: learningPath.quizSuggestions,

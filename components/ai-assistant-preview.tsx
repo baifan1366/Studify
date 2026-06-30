@@ -33,7 +33,10 @@ import {
   Maximize2,
   Trash2,
   Plus,
-  Zap
+  Zap,
+  Copy,
+  Search,
+  ListChecks
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -674,6 +677,117 @@ function MarkdownContent({ content }: { content: string; isStreaming?: boolean }
   return <AIMarkdownMessage content={content} />;
 }
 
+type AIMode = 'fast' | 'thinking';
+
+function AIModeToggle({
+  value,
+  onChange,
+  disabled = false,
+}: {
+  value: AIMode;
+  onChange: (mode: AIMode) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Response mode</span>
+      <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900/50">
+        {([
+          { value: 'fast' as const, label: 'Fast', icon: Zap },
+          { value: 'thinking' as const, label: 'Thinking', icon: Brain },
+        ]).map((option) => {
+          const Icon = option.icon;
+          const active = value === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              disabled={disabled}
+              onClick={() => onChange(option.value)}
+              aria-pressed={active}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                active
+                  ? option.value === 'fast'
+                    ? 'bg-blue-500 text-white shadow-sm'
+                    : 'bg-violet-500 text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+              } disabled:cursor-not-allowed disabled:opacity-50`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AIProgressPanel({
+  kind,
+  mode,
+}: {
+  kind: 'solve' | 'notes' | 'path';
+  mode: AIMode;
+}) {
+  const steps = kind === 'solve'
+    ? ['Input sent securely', 'AI is analyzing the problem', 'The solution will appear when ready']
+    : kind === 'notes'
+      ? ['Material sent securely', 'AI is organizing your material', 'The note will appear when ready']
+      : ['Goal sent securely', 'AI is designing your roadmap', 'The interactive path will appear when ready'];
+
+  return (
+    <div className="rounded-xl border border-blue-200/70 bg-blue-50/70 p-3 dark:border-blue-900/60 dark:bg-blue-950/20" aria-live="polite">
+      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-blue-800 dark:text-blue-200">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        {steps[1]}
+      </div>
+      <div className="space-y-2">
+        {steps.map((label, index) => (
+          <div key={label} className="flex items-center gap-2 text-xs">
+            <div className={`flex h-5 w-5 items-center justify-center rounded-full ${
+              index === 0
+                ? 'bg-emerald-500 text-white'
+                : index === 1
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-slate-200 text-slate-500 dark:bg-slate-700'
+            }`}>
+              {index === 0 ? <CheckCircle className="h-3 w-3" /> : index === 1 ? <Loader2 className="h-3 w-3 animate-spin" /> : index + 1}
+            </div>
+            <span className={index < 2 ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400'}>{label}</span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
+        {mode === 'thinking' ? 'Using deeper reasoning for a more considered result.' : 'Optimized for a quick, useful result.'}
+      </p>
+    </div>
+  );
+}
+
+function PromptSuggestions({
+  prompts,
+  onSelect,
+}: {
+  prompts: string[];
+  onSelect: (prompt: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap justify-center gap-2">
+      {prompts.map((prompt) => (
+        <button
+          key={prompt}
+          type="button"
+          onClick={() => onSelect(prompt)}
+          className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-left text-xs text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-blue-700 dark:hover:bg-blue-950/30"
+        >
+          {prompt}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // Helper function to format relative time
 function formatRelativeTime(dateString: string): string {
   const date = new Date(dateString);
@@ -700,6 +814,7 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
   const [aiMode, setAIMode] = useState<'fast' | 'thinking'>('fast');
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [queuedQuestions, setQueuedQuestions] = useState<string[]>([]);
   
   const queryClient = useQueryClient();
   const { streamQA, isStreaming } = useAIQuickQAStream();
@@ -720,7 +835,7 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
   
   // Load session messages when session changes
   useEffect(() => {
-    if (sessionData?.messages) {
+    if (!isTyping && !isStreaming && sessionData?.messages) {
       const loadedMessages: ChatMessage[] = sessionData.messages.map((msg: any) => ({
         id: msg.id.toString(),
         type: msg.role === 'user' ? 'user' : 'ai',
@@ -732,7 +847,7 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
       }));
       setMessages(loadedMessages);
     }
-  }, [sessionData]);
+  }, [sessionData, isTyping, isStreaming]);
 
   // 改进的滚动逻辑
   const scrollToBottom = () => {
@@ -770,13 +885,19 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleSend = async () => {
-    if (!currentInput.trim() || isTyping || isStreaming) return;
+  const handleSend = async (queuedInput?: string) => {
+    const question = (queuedInput ?? currentInput).trim();
+    if (!question) return;
+    if ((isTyping || isStreaming) && !queuedInput) {
+      setQueuedQuestions((items) => [...items, question]);
+      setCurrentInput('');
+      return;
+    }
     
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       type: 'user',
-      content: currentInput.trim(),
+      content: question,
       timestamp: new Date()
     };
 
@@ -870,11 +991,6 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
                 : msg
             ));
             setIsTyping(false);
-            // Invalidate queries to refresh session list with updated timestamp
-            queryClient.invalidateQueries({ queryKey: ['qa-sessions'] });
-            if (activeSessionId) {
-              queryClient.invalidateQueries({ queryKey: ['qa-session-messages', activeSessionId] });
-            }
           },
           onError: (error: Error) => {
             console.error('Stream error:', error);
@@ -897,6 +1013,11 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
           }
         }
       );
+      // The stream closes only after the server has persisted this turn.
+      queryClient.invalidateQueries({ queryKey: ['qa-sessions'] });
+      if (activeSessionId) {
+        queryClient.invalidateQueries({ queryKey: ['qa-session-messages', activeSessionId] });
+      }
     } catch (error) {
       console.error('Quick QA error:', error);
       const errorMessage = error instanceof Error ? error.message : t('chat.error.unknown');
@@ -922,6 +1043,13 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
     }
   };
 
+  useEffect(() => {
+    if (isTyping || isStreaming || queuedQuestions.length === 0) return;
+    const [next, ...rest] = queuedQuestions;
+    setQueuedQuestions(rest);
+    void handleSend(next);
+  }, [isTyping, isStreaming, queuedQuestions]);
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -930,11 +1058,14 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
   };
 
   const handleNewChat = () => {
+    if (isTyping || isStreaming) return;
     setCurrentSessionId(null);
     setMessages([]);
+    setQueuedQuestions([]);
   };
 
   const handleSessionClick = (sessionId: string) => {
+    if (isTyping || isStreaming) return;
     setCurrentSessionId(sessionId);
   };
 
@@ -961,6 +1092,7 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
           <div className="p-2 border-b border-slate-200 dark:border-slate-700/30">
             <Button
               onClick={handleNewChat}
+              disabled={isTyping || isStreaming}
               className="w-full justify-start gap-2 bg-blue-500 hover:bg-blue-600 text-white text-xs h-8"
               size="sm"
             >
@@ -975,7 +1107,18 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
               <div
                 key={session.id}
                 onClick={() => handleSessionClick(session.id)}
-                className={`group relative p-2 rounded-lg cursor-pointer transition-colors ${
+                onKeyDown={(event) => {
+                  if ((event.key === 'Enter' || event.key === ' ') && !isTyping && !isStreaming) {
+                    event.preventDefault();
+                    handleSessionClick(session.id);
+                  }
+                }}
+                role="button"
+                tabIndex={isTyping || isStreaming ? -1 : 0}
+                aria-disabled={isTyping || isStreaming}
+                className={`group relative p-2 rounded-lg transition-colors ${
+                  isTyping || isStreaming ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                } ${
                   currentSessionId === session.id
                     ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
                     : 'hover:bg-slate-100 dark:hover:bg-slate-700/50'
@@ -994,6 +1137,7 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
                     variant="ghost"
                     size="sm"
                     onClick={(e) => handleDeleteSession(session.id, e)}
+                    disabled={isTyping || isStreaming}
                     className="opacity-0 group-hover:opacity-100 h-5 w-5 p-0 hover:bg-red-100 dark:hover:bg-red-900/20 hover:text-red-600"
                   >
                     <Trash2 className="h-3 w-3" />
@@ -1036,12 +1180,20 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
         {/* 聊天消息区域 */}
         <CardContent ref={chatContainerRef} className="flex-1 overflow-y-auto p-3 space-y-3">
           {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="flex h-full flex-col items-center justify-center px-4 text-center">
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-3">
                 <MessageCircle className="h-6 w-6 text-blue-500 dark:text-blue-400" />
               </div>
               <p className="text-slate-600 dark:text-slate-400 text-sm mb-2">{t('chat.welcome.title')}</p>
-              <p className="text-slate-500 dark:text-slate-500 text-xs">{t('chat.welcome.subtitle')}</p>
+              <p className="mb-4 text-xs text-slate-500 dark:text-slate-500">{t('chat.welcome.subtitle')}</p>
+              <PromptSuggestions
+                prompts={[
+                  'Explain a difficult concept simply',
+                  'Quiz me on what I learned today',
+                  'Recommend what I should study next',
+                ]}
+                onSelect={setCurrentInput}
+              />
             </div>
           )}
           
@@ -1082,7 +1234,15 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
                       <div className="bg-slate-100 dark:bg-slate-700 rounded-2xl rounded-tl-md px-4 py-3">
                         {/* 如果消息内容为空且正在流式传输，显示 Typing Indicator */}
                         {message.isStreaming && !message.content && !message.thinking ? (
-                          <TypingIndicator />
+                          <div className="space-y-2 py-1" aria-live="polite">
+                            <div className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-200">
+                              <Search className="h-3.5 w-3.5 animate-pulse text-blue-500" />
+                              {aiMode === 'thinking' ? 'Reviewing context and reasoning…' : 'Finding the most useful answer…'}
+                            </div>
+                            <div className="h-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-600">
+                              <div className="h-full w-2/3 animate-pulse rounded-full bg-blue-500" />
+                            </div>
+                          </div>
                         ) : (
                           <div className="ai-message-content">
                             <div className="prose prose-sm max-w-none dark:prose-invert prose-slate">
@@ -1095,6 +1255,18 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
                           </div>
                         )}
                       </div>
+                      {!message.isStreaming && message.content && (
+                        <div className="mt-1 flex items-center gap-1 pl-1">
+                          <button
+                            type="button"
+                            onClick={() => void navigator.clipboard.writeText(message.content)}
+                            className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-white"
+                            aria-label="Copy response"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
@@ -1119,33 +1291,8 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
 
         {/* 输入区域 */}
         <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-700/30 p-3">
-          {/* AI Mode Toggle */}
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-slate-600 dark:text-slate-400">AI Mode:</span>
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
-              <button
-                onClick={() => setAIMode('fast')}
-                disabled={isTyping}
-                className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
-                  aiMode === 'fast'
-                    ? 'bg-blue-500 text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <><Zap className="mr-1 inline h-3 w-3" />Fast</>
-              </button>
-              <button
-                onClick={() => setAIMode('thinking')}
-                disabled={isTyping}
-                className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 ${
-                  aiMode === 'thinking'
-                    ? 'bg-purple-500 text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <><Brain className="mr-1 inline h-3 w-3" />Thinking</>
-              </button>
-            </div>
+          <div className="mb-2">
+            <AIModeToggle value={aiMode} onChange={setAIMode} disabled={isTyping} />
           </div>
           
           <div className="flex items-end space-x-2">
@@ -1163,13 +1310,12 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
                 }}
                 placeholder={t('chat.input.placeholder')}
                 className="min-h-[36px] max-h-[120px] resize-none bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600/50 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 text-sm"
-                disabled={isTyping}
                 aria-label={t('chat.input.aria_label')}
               />
             </div>
             <Button
-              onClick={handleSend}
-              disabled={!currentInput.trim() || isTyping}
+              onClick={() => void handleSend()}
+              disabled={!currentInput.trim()}
               size="sm"
               className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2"
             >
@@ -1180,6 +1326,12 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
               )}
             </Button>
           </div>
+          {queuedQuestions.length > 0 && (
+            <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500" aria-live="polite">
+              <ListChecks className="h-3.5 w-3.5" />
+              {queuedQuestions.length} message{queuedQuestions.length > 1 ? 's' : ''} queued
+            </p>
+          )}
         </div>
       </div>
     </Card>
@@ -1458,7 +1610,7 @@ function SolveProblemCard({ onClose, onResult, onFullscreen, isFullscreen }: {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,.pdf,.doc,.docx"
+            accept="image/jpeg,image/png,image/gif,image/webp"
             onChange={handleFileUpload}
             className="hidden"
           />
@@ -1522,34 +1674,8 @@ function SolveProblemCard({ onClose, onResult, onFullscreen, isFullscreen }: {
           </div>
         )}
 
-        {/* AI Mode Toggle */}
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-600 dark:text-slate-400">AI Mode:</span>
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
-            <button
-              onClick={() => setAIMode('fast')}
-              disabled={solveProblemMutation.isPending}
-              className={`px-3 py-1.5 text-sm font-medium rounded transition-all duration-200 ${
-                aiMode === 'fast'
-                  ? 'bg-blue-500 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <><Zap className="mr-1 inline h-4 w-4" />Fast</>
-            </button>
-            <button
-              onClick={() => setAIMode('thinking')}
-              disabled={solveProblemMutation.isPending}
-              className={`px-3 py-1.5 text-sm font-medium rounded transition-all duration-200 ${
-                aiMode === 'thinking'
-                  ? 'bg-purple-500 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <><Brain className="mr-1 inline h-4 w-4" />Thinking</>
-            </button>
-          </div>
-        </div>
+        <AIModeToggle value={aiMode} onChange={setAIMode} disabled={solveProblemMutation.isPending} />
+        {solveProblemMutation.isPending && <AIProgressPanel kind="solve" mode={aiMode} />}
 
         {/* 按钮组 */}
         <div className="flex justify-end space-x-3">
@@ -1663,38 +1789,22 @@ function SmartNotesCard({ onClose, onResult, onFullscreen, isFullscreen }: {
           }}
           className="min-h-[120px] bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600/50 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
         />
+        {!content && (
+          <PromptSuggestions
+            prompts={[
+              'Turn these notes into a concise study guide',
+              'Extract key concepts, definitions, and examples',
+              'Summarize this into exam-ready revision notes',
+            ]}
+            onSelect={setContent}
+          />
+        )}
         <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
           <span>{content.length} {t('common.characters')}</span>
         </div>
         
-        {/* AI Mode Toggle */}
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-600 dark:text-slate-400">AI Mode:</span>
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
-            <button
-              onClick={() => setAIMode('fast')}
-              disabled={smartNotesMutation.isPending}
-              className={`px-3 py-1.5 text-sm font-medium rounded transition-all duration-200 ${
-                aiMode === 'fast'
-                  ? 'bg-blue-500 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <><Zap className="mr-1 inline h-4 w-4" />Fast</>
-            </button>
-            <button
-              onClick={() => setAIMode('thinking')}
-              disabled={smartNotesMutation.isPending}
-              className={`px-3 py-1.5 text-sm font-medium rounded transition-all duration-200 ${
-                aiMode === 'thinking'
-                  ? 'bg-purple-500 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <><Brain className="mr-1 inline h-4 w-4" />Thinking</>
-            </button>
-          </div>
-        </div>
+        <AIModeToggle value={aiMode} onChange={setAIMode} disabled={smartNotesMutation.isPending} />
+        {smartNotesMutation.isPending && <AIProgressPanel kind="notes" mode={aiMode} />}
         
         <div className="flex justify-end space-x-3">
           <Button variant="outline" onClick={onClose} className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">{t('common.cancel')}</Button>
@@ -1828,6 +1938,16 @@ function LearningPathCard({ onClose, onResult, onFullscreen, isFullscreen }: {
           }}
           className="bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600/50 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
         />
+        {!goal && (
+          <PromptSuggestions
+            prompts={[
+              'Become job-ready in frontend development',
+              'Learn practical generative AI from scratch',
+              'Prepare for a data analyst career',
+            ]}
+            onSelect={setGoal}
+          />
+        )}
         
         <div className="grid grid-cols-2 gap-4">
           <select 
@@ -1854,34 +1974,8 @@ function LearningPathCard({ onClose, onResult, onFullscreen, isFullscreen }: {
           </select>
         </div>
         
-        {/* AI Mode Toggle */}
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-600 dark:text-slate-400">AI Mode:</span>
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
-            <button
-              onClick={() => setAIMode('fast')}
-              disabled={learningPathMutation.isPending}
-              className={`px-3 py-1.5 text-sm font-medium rounded transition-all duration-200 ${
-                aiMode === 'fast'
-                  ? 'bg-blue-500 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <><Zap className="mr-1 inline h-4 w-4" />Fast</>
-            </button>
-            <button
-              onClick={() => setAIMode('thinking')}
-              disabled={learningPathMutation.isPending}
-              className={`px-3 py-1.5 text-sm font-medium rounded transition-all duration-200 ${
-                aiMode === 'thinking'
-                  ? 'bg-purple-500 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <><Brain className="mr-1 inline h-4 w-4" />Thinking</>
-            </button>
-          </div>
-        </div>
+        <AIModeToggle value={aiMode} onChange={setAIMode} disabled={learningPathMutation.isPending} />
+        {learningPathMutation.isPending && <AIProgressPanel kind="path" mode={aiMode} />}
         
         <div className="flex justify-end space-x-3">
           <Button variant="outline" onClick={onClose} className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">{t('common.cancel')}</Button>
@@ -1942,6 +2036,9 @@ function AIResultCard({ type, result, onClose, onTryAgain, onExpand }: AIResultC
 
   const config = getConfig();
   const Icon = config.icon;
+  const copyableResult = typeof (result.answer || result.result || result.analysis) === 'string'
+    ? (result.answer || result.result || result.analysis)
+    : JSON.stringify(result.answer || result.result || result.analysis || result, null, 2);
 
   return (
     <Card className="w-full border border-slate-200 dark:border-slate-700/30 bg-white dark:bg-slate-800/60 max-h-[600px] flex flex-col">
@@ -1963,6 +2060,15 @@ function AIResultCard({ type, result, onClose, onTryAgain, onExpand }: AIResultC
             </div>
           </div>
           <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void navigator.clipboard.writeText(copyableResult)}
+              className="h-8 w-8 p-0 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+              aria-label="Copy result"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
             <Button 
               variant="ghost" 
               size="sm"
@@ -2241,8 +2347,6 @@ interface StreamingResultContentProps {
 function StreamingResultContent({ type, result }: StreamingResultContentProps) {
   const t = useTranslations('AIAssistant');
   const { data: user } = useUser();
-  const [displayText, setDisplayText] = useState('');
-  const [isStreaming, setIsStreaming] = useState(true);
   const [questionContext, setQuestionContext] = useState<string>('');
 
   // Helper function to get numeric user ID
@@ -2253,6 +2357,8 @@ function StreamingResultContent({ type, result }: StreamingResultContentProps) {
   };
   
   const fullText = result.answer || result.result || '';
+  const displayText = fullText;
+  const isStreaming = false;
 
   // Extract question context from result if available
   React.useEffect(() => {
@@ -2263,25 +2369,19 @@ function StreamingResultContent({ type, result }: StreamingResultContentProps) {
     }
   }, [result]);
 
+  /*
+    Results from this endpoint are non-streaming. Render the completed response
+    immediately instead of replaying it character by character and blocking
+    result actions behind an artificial delay.
+  */
+  /*
   React.useEffect(() => {
-    if (!fullText) return;
-    
-    setDisplayText('');
-    setIsStreaming(true);
-    
-    let currentIndex = 0;
-    const streamInterval = setInterval(() => {
-      if (currentIndex < fullText.length) {
-        setDisplayText(fullText.slice(0, currentIndex + 1));
-        currentIndex++;
-      } else {
-        setIsStreaming(false);
-        clearInterval(streamInterval);
-      }
+    return undefined;
     }, 10); // 控制流式输出速度 (10ms = 更快, 20ms = 适中, 30ms = 较慢)
 
     return () => clearInterval(streamInterval);
   }, [fullText]);
+  */
 
   const getIcon = () => {
     switch (type) {

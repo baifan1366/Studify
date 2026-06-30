@@ -32,6 +32,7 @@ export interface Post {
     id?: number;
     display_name: string;
     avatar_url?: string;
+    community_title?: string | null;
   };
 
   group?: {

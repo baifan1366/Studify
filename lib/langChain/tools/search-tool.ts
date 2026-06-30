@@ -537,18 +537,81 @@ export const searchTool = new DynamicStructuredTool({
       // 3. Search general content
       const generalContentTypes = contentTypes.filter((t: string) => t !== 'video_segment' && t !== 'document_segment');
       if (generalContentTypes.length > 0 || contentTypes.length === 0) {
-        const generalResults = await smartSearch(searchQuery, {
-          maxResults: 5,
-          enhanceResults: false,
-          contentTypes: generalContentTypes.length > 0 ? generalContentTypes : undefined,
-          queryEmbeddingE5: clientEmbedding,
-        });
-        
-        allResults.push(...generalResults.results.map((doc: any) => ({
-          type: doc.metadata.contentType || 'course_content',
-          content: doc.pageContent,
-          title: doc.metadata.title || 'Course Content'
-        })));
+        if (videoContext?.lessonId) {
+          // A video question is a scoped retrieval problem. Never mix arbitrary
+          // lessons from the global embedding index into the current lesson.
+          const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+          );
+          const { data: scopedLesson, error: scopedLessonError } = await supabase
+            .from('course_lesson')
+            .select(`
+              id,
+              public_id,
+              title,
+              description,
+              transcript,
+              course_id,
+              course:course(title, description, slug)
+            `)
+            .eq('public_id', videoContext.lessonId)
+            .eq('is_deleted', false)
+            .single();
+
+          if (scopedLessonError) {
+            console.warn('Scoped lesson context lookup failed:', scopedLessonError.message);
+          } else if (scopedLesson) {
+            const hasPrimarySegments = rawVideoResults.length > 0 || rawDocumentResults.length > 0;
+            const lessonContent = hasPrimarySegments
+              ? scopedLesson.description
+              : scopedLesson.transcript || scopedLesson.description;
+
+            if (generalContentTypes.includes('lesson') && lessonContent?.trim()) {
+              allResults.push({
+                type: 'lesson',
+                content_type: 'lesson',
+                content: lessonContent.trim(),
+                content_text: lessonContent.trim(),
+                title: scopedLesson.title,
+                lesson_id: scopedLesson.id,
+                lesson_public_id: scopedLesson.public_id,
+                course_id: scopedLesson.course_id,
+              });
+            }
+
+            const course = Array.isArray(scopedLesson.course)
+              ? scopedLesson.course[0]
+              : scopedLesson.course;
+            if (generalContentTypes.includes('course_content') && course) {
+              const courseContent = [course.title, course.description].filter(Boolean).join('\n\n');
+              if (courseContent.trim()) {
+                allResults.push({
+                  type: 'course_content',
+                  content_type: 'course_content',
+                  content: courseContent,
+                  content_text: courseContent,
+                  title: course.title,
+                  course_id: scopedLesson.course_id,
+                  url: course.slug ? `/courses/${course.slug}` : undefined,
+                });
+              }
+            }
+          }
+        } else {
+          const generalResults = await smartSearch(searchQuery, {
+            maxResults: 5,
+            enhanceResults: false,
+            contentTypes: generalContentTypes.length > 0 ? generalContentTypes : undefined,
+            queryEmbeddingE5: clientEmbedding,
+          });
+
+          allResults.push(...generalResults.results.map((doc: any) => ({
+            type: doc.metadata.contentType || 'course_content',
+            content: doc.pageContent,
+            title: doc.metadata.title || 'Course Content'
+          })));
+        }
       }
       
       // Remove duplicate overlap chunks before they consume retrieval and

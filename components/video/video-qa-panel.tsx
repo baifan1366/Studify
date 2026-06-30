@@ -509,14 +509,14 @@ export function VideoQAPanel({
             </div>
 
             {/* Answer */}
-            <div className="bg-green-50 dark:bg-green-900/30 p-3 rounded-xl border border-green-200 dark:border-green-700">
-              <div className="flex items-center gap-2 mb-2">
-                <Lightbulb className="w-4 h-4 text-green-600 dark:text-green-400" />
-                <div className="text-sm font-medium text-green-700 dark:text-green-300">
+            <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
+              <div className="mb-4 flex items-center gap-2 border-b border-border/60 pb-3">
+                <Lightbulb className="h-4 w-4 text-emerald-500" />
+                <div className="text-sm font-semibold text-foreground">
                   AI {t('answer')}:
                 </div>
                 {effectiveAnswer.metadata?.aiMode && (
-                  <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-green-100 dark:bg-green-700 text-green-700 dark:text-green-200">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-300">
                     {(() => {
                       const mode =
                         effectiveAnswer.metadata?.aiMode === 'thinking' ||
@@ -552,7 +552,7 @@ export function VideoQAPanel({
                 </details>
               )}
               
-              <AIMarkdownMessage content={effectiveAnswer.answer} onAsk={askFromAnswer} className="text-sm text-gray-900 dark:text-white break-words overflow-wrap-anywhere" />
+              <AIMarkdownMessage content={effectiveAnswer.answer} onAsk={askFromAnswer} className="break-words text-[15px] [overflow-wrap:anywhere]" />
             </div>
 
             {/* Related Segments */}

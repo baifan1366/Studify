@@ -5,7 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
-import { Check, Copy, MessageCircle, Minus, Plus } from "lucide-react";
+import { Check, Copy, ExternalLink, MessageCircle, Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -37,10 +37,18 @@ export function AIMarkdownMessage({ content, onAsk, className }: Props) {
     window.setTimeout(() => setCopied(false), 1500);
   };
 
-  const askTerm = (term: string) => onAsk?.(`What does "${term}" mean in this video?`);
   const normalizedContent = content
     .replace(/\|\|\s*(?=\|?\s*:?-{3,})/g, "|\n|")
-    .replace(/([^\n])\n(#{1,6}\s)/g, "$1\n\n$2");
+    .replace(/([^\n])\n(#{1,6}\s)/g, "$1\n\n$2")
+    .replace(/【(https?:\/\/[^】\s]+)】/g, (_match, url: string) => {
+      try {
+        return `[${new URL(url).hostname.replace(/^www\./, "")}](${url})`;
+      } catch {
+        return `[Source](${url})`;
+      }
+    })
+    .replace(/【Video\s+(\d{1,2}:\d{2})】/gi, "`Video · $1`")
+    .replace(/【([^】]+)】/g, "**$1**");
 
   return (
     <div ref={rootRef} className={cn("relative", className)} onMouseUp={captureSelection}>
@@ -51,24 +59,36 @@ export function AIMarkdownMessage({ content, onAsk, className }: Props) {
           {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
         </button>
       </div>
-      <div className="max-w-none origin-top-left" style={{ fontSize: `${scale}rem` }}>
-        <div className="prose max-w-none text-[1em] dark:prose-invert prose-p:text-[1em] prose-li:text-[1em] prose-td:text-[.92em] prose-th:text-[.92em] prose-pre:overflow-x-auto prose-a:text-blue-500">
+      <div className="max-w-none origin-top-left text-foreground" style={{ fontSize: `${scale}rem` }}>
         <ReactMarkdown
           remarkPlugins={[remarkGfm as any, remarkMath as any]}
           rehypePlugins={[rehypeKatex as any]}
           components={{
-            a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
-            strong: ({ children }) => {
-              const term = String(children);
-              return onAsk ? (
-                <button type="button" onClick={() => askTerm(term)} className="font-semibold underline decoration-dotted underline-offset-4 hover:text-blue-500" title="Ask AI about this term">{children}</button>
-              ) : <strong>{children}</strong>;
-            },
+            h1: ({ children }) => <h1 className="mb-4 mt-7 text-xl font-semibold tracking-tight first:mt-0">{children}</h1>,
+            h2: ({ children }) => <h2 className="mb-3 mt-7 border-b border-border/60 pb-2 text-lg font-semibold tracking-tight first:mt-0">{children}</h2>,
+            h3: ({ children }) => <h3 className="mb-2 mt-6 text-base font-semibold tracking-tight first:mt-0">{children}</h3>,
+            p: ({ children }) => <p className="my-3 leading-7 text-foreground/90 first:mt-0 last:mb-0">{children}</p>,
+            ul: ({ children }) => <ul className="my-4 space-y-2 pl-5 marker:text-muted-foreground">{children}</ul>,
+            ol: ({ children }) => <ol className="my-4 list-decimal space-y-3 pl-6 marker:font-medium marker:text-muted-foreground">{children}</ol>,
+            li: ({ children }) => <li className="pl-1 leading-7 text-foreground/90">{children}</li>,
+            blockquote: ({ children }) => <blockquote className="my-4 border-l-2 border-blue-500/60 pl-4 text-muted-foreground">{children}</blockquote>,
+            hr: () => <hr className="my-7 border-border/70" />,
+            strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+            code: ({ children, className: codeClass }) => codeClass ? (
+              <code className={cn("font-mono text-sm", codeClass)}>{children}</code>
+            ) : (
+              <code className="rounded-md border border-border/70 bg-muted px-1.5 py-0.5 font-mono text-[.86em] text-foreground">{children}</code>
+            ),
+            pre: ({ children }) => <pre className="my-4 overflow-x-auto rounded-xl border border-border bg-muted/60 p-4 text-sm leading-6">{children}</pre>,
+            a: ({ href, children }) => (
+              <a href={href} target="_blank" rel="noopener noreferrer" className="mx-0.5 inline-flex max-w-full items-center gap-1 rounded-md bg-blue-500/10 px-1.5 py-0.5 align-baseline text-[.88em] font-medium text-blue-600 no-underline hover:bg-blue-500/15 dark:text-blue-300">
+                <span className="truncate">{children}</span><ExternalLink className="h-3 w-3 shrink-0" />
+              </a>
+            ),
           }}
         >
           {normalizedContent}
         </ReactMarkdown>
-        </div>
       </div>
       {selection && onAsk && (
         <button

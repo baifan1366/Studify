@@ -644,8 +644,7 @@ export async function generateCommunityPostRecommendations(
         created_at,
         community_group:group_id(
           name,
-          visibility,
-          member_count
+          visibility
         )
       `)
       .eq('is_deleted', false)
@@ -716,11 +715,10 @@ export async function generateCommunityPostRecommendations(
       }
 
       // 20% weight from group popularity/activity
-      const groupScore = post.community_group ? 
-        Math.min((post.community_group.member_count || 0) / 100, 1) * 0.2 : 0.1;
+      const groupScore = post.community_group ? 0.1 : 0.05;
       score += groupScore;
-      if (post.community_group && post.community_group.member_count > 50) {
-        reasons.push(`Popular in ${post.community_group.name} community`);
+      if (post.community_group) {
+        reasons.push(`Shared in ${post.community_group.name} community`);
       }
 
       // 10% weight from content quality (length, formatting)
@@ -831,8 +829,6 @@ export async function generateCommunityGroupRecommendations(
         name,
         description,
         visibility,
-        member_count,
-        post_count,
         created_at
       `)
       .eq('is_deleted', false);
@@ -845,10 +841,32 @@ export async function generateCommunityGroupRecommendations(
       groupQuery = groupQuery.not('id', 'in', `(${joinedGroupIds.join(',')})`);
     }
 
-    const { data: groups, error: groupsError } = await groupQuery.limit(maxResults * 3);
+    let { data: groups, error: groupsError } = await groupQuery.limit(maxResults * 3);
 
     if (groupsError) {
       throw new Error(`Groups query error: ${groupsError.message}`);
+    }
+    groups = groups || [];
+
+    const candidateIds = groups.map((group: any) => group.id);
+    if (candidateIds.length > 0) {
+      const [{ data: memberships }, { data: posts }] = await Promise.all([
+        supabase.from('community_group_member').select('group_id').in('group_id', candidateIds).eq('is_deleted', false),
+        supabase.from('community_post').select('group_id').in('group_id', candidateIds).eq('is_deleted', false)
+      ]);
+      const memberCounts = new Map<number, number>();
+      const postCounts = new Map<number, number>();
+      (memberships || []).forEach((row: any) =>
+        memberCounts.set(row.group_id, (memberCounts.get(row.group_id) || 0) + 1)
+      );
+      (posts || []).forEach((row: any) =>
+        postCounts.set(row.group_id, (postCounts.get(row.group_id) || 0) + 1)
+      );
+      groups = groups.map((group: any) => ({
+        ...group,
+        member_count: memberCounts.get(group.id) || 0,
+        post_count: postCounts.get(group.id) || 0
+      }));
     }
 
     // Get embeddings for all groups

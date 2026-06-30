@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/server";
 import { getLLM } from "@/lib/langChain/client";
+import { loadVideoTranscriptSegments } from "@/lib/video-processing/transcript-source";
 
 type ArtifactType = "note" | "mind_map" | "quiz";
 
@@ -73,21 +75,17 @@ export async function POST(request: NextRequest) {
   const lessonColumn = /^\d+$/.test(lessonId) ? "id" : "public_id";
   const { data: lesson } = await context.supabase
     .from("course_lesson")
-    .select("id, title, module_id")
+    .select("id, title, module_id, course_id, attachments, transcript")
     .eq(lessonColumn, lessonId)
     .single();
   if (!lesson) return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
 
   const { data: module } = await context.supabase
     .from("course_module").select("course_id").eq("id", lesson.module_id).maybeSingle();
-  const { data: segments } = await context.supabase
-    .from("video_segments")
-    .select("start_time, end_time, text")
-    .eq("lesson_id", lesson.id)
-    .order("start_time")
-    .limit(500);
-  const transcript = (segments ?? [])
-    .map((item) => `[${Math.floor(Number(item.start_time))}s] ${item.text}`)
+  const transcriptClient = await createAdminClient();
+  const segments = await loadVideoTranscriptSegments(transcriptClient, lesson);
+  const transcript = segments
+    .map((item) => `[${Math.floor(item.startTime)}s] ${item.text}`)
     .join("\n")
     .slice(0, 50000);
   if (!transcript) return NextResponse.json({ error: "Transcript is not ready yet" }, { status: 409 });
@@ -111,7 +109,7 @@ ${transcript}`);
     .insert({
       user_id: context.profile.id,
       lesson_id: lesson.id,
-      course_id: module?.course_id ?? null,
+      course_id: lesson.course_id ?? module?.course_id ?? null,
       artifact_type: type,
       title: generated.title || `${lesson.title} ${type.replace("_", " ")}`,
       content: generated,

@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateCourseRecommendations } from '@/lib/langChain/tools/course-recommendation-tool';
+import { authorize } from '@/utils/auth/server-guard';
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await authorize('student');
+    if (auth instanceof NextResponse) return auth;
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-    const maxResults = parseInt(searchParams.get('maxResults') || '10');
+    const userId = auth.user.profile?.id;
+    const maxResults = Math.min(Math.max(parseInt(searchParams.get('maxResults') || '10'), 1), 20);
     const includeEnrolled = searchParams.get('includeEnrolled') === 'true';
     const categoryFilter = searchParams.get('category');
     const levelFilter = searchParams.get('level');
@@ -18,7 +21,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const recommendations = await generateCourseRecommendations(parseInt(userId), {
+    const recommendations = await generateCourseRecommendations(Number(userId), {
       maxResults,
       includeEnrolled,
       categoryFilter: categoryFilter || undefined,

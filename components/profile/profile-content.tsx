@@ -67,6 +67,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AchievementsSection from "@/components/student/achievements-section";
+import { CertificatesSection } from "@/components/profile/certificates-section";
 import StudentAchievementStats from "@/components/student/achievement-stats";
 import Image from "next/image";
 import MegaImage from "@/components/attachment/mega-blob-image";
@@ -1411,7 +1412,10 @@ export default function ProfileContent() {
 
             {/* Achievements System - Only for students */}
             {profile?.role === "student" && (
-              <AchievementsSection className="mb-6" />
+              <>
+                <AchievementsSection className="mb-6" />
+                <CertificatesSection />
+              </>
             )}
 
             {/* Quick Actions */}

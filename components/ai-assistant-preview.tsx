@@ -60,7 +60,6 @@ import { useSaveAINote } from '@/hooks/dashboard/use-ai-notes';
 import { useSaveMistake } from '@/hooks/dashboard/use-mistake-book';
 import ReactMarkdown from 'react-markdown';
 import AIContentRecommendations from './ai/ai-content-recommendations';
-import SmartRecommendations from './ai/smart-recommendations';
 import { useUser } from '@/hooks/profile/use-user';
 
 // 导入真正的Mermaid渲染器
@@ -2215,7 +2214,7 @@ function LearningPathVisualization({ learningPath, learningGoal, currentLevel }:
                   <Button 
                     size="sm" 
                     className="bg-purple-500 hover:bg-purple-600 text-white"
-                    onClick={() => window.open(`/tutor/quiz/${quiz.id}`, '_blank')}
+                    onClick={() => window.open(quiz.href || '/courses', '_blank')}
                   >
                     {t('learning_path.start_quiz')}
                   </Button>
@@ -2436,8 +2435,8 @@ function StreamingResultContent({ type, result }: StreamingResultContentProps) {
       )}
 
       {/* Q&A类型，推荐社区帖子和群组 */}
-      {!isStreaming && getUserId() && type === 'quick_qa' && (
-        <div className="mt-6 space-y-4">
+      {!isStreaming && getUserId() && fullText.length > 10 && (
+        <div className="mt-6">
           {/* 推荐相关内容（课程视频和社区帖子） */}
           <AIContentRecommendations 
             aiResponse={fullText}
@@ -2447,13 +2446,6 @@ function StreamingResultContent({ type, result }: StreamingResultContentProps) {
           />
           
           {/* 推荐相关学习社区 */}
-          <SmartRecommendations
-            type="groups"
-            userId={getUserId()}
-            context={fullText}
-            maxResults={3}
-            className="w-full"
-          />
         </div>
       )}
 

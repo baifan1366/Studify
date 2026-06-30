@@ -111,6 +111,11 @@ export default function PostCard({ post }: { post: Post }) {
             </CardTitle>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               {t('by_prefix')}{post.author?.display_name || t('unknown_user')}
+              {post.author?.community_title && (
+                <Badge variant="secondary" className="ml-2 text-[10px]">
+                  {post.author.community_title}
+                </Badge>
+              )}
             </p>
           </div>
         </div>

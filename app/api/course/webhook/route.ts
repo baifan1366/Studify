@@ -24,18 +24,16 @@ async function handleTutorEarnings(supabase: any, course: any, order: any, sessi
       return;
     }
 
-    // Check if tutor has Stripe Connect account
-    const { data: stripeAccount, error: accountError } = await supabase
-      .from('tutor_stripe_accounts')
-      .select('*')
-      .eq('tutor_id', tutor.id)
+    // Stripe retries webhook events. An order may create exactly one earning.
+    const { data: existingEarning } = await supabase
+      .from('tutor_earnings')
+      .select('id')
+      .eq('source_type', 'course_sale')
+      .eq('source_id', order.id)
       .eq('is_deleted', false)
-      .single();
+      .maybeSingle();
 
-    if (accountError || !stripeAccount) {
-      console.error('[Earnings] Tutor does not have Stripe Connect account:', tutor.id);
-      // Still record the earning but mark as pending transfer
-    }
+    if (existingEarning) return;
 
     const grossAmount = order.total_cents;
     const platformFee = Math.floor(grossAmount * PLATFORM_COMMISSION_RATE);
@@ -75,45 +73,8 @@ async function handleTutorEarnings(supabase: any, course: any, order: any, sessi
 
     console.log(`[Earnings] Created earnings record: ${earningsRecord.public_id}`);
 
-    // If tutor has Stripe Connect account and it's enabled, create transfer
-    if (stripeAccount && stripeAccount.charges_enabled && stripeAccount.payouts_enabled) {
-      try {
-        console.log(`[Earnings] Creating Stripe transfer to: ${stripeAccount.stripe_account_id}`);
-        
-        const transfer = await stripe.transfers.create({
-          amount: tutorAmount,
-          currency: currency.toLowerCase(),
-          destination: stripeAccount.stripe_account_id,
-          transfer_group: `course_sale_${order.public_id}`,
-          metadata: {
-            tutor_id: tutor.id.toString(),
-            course_id: course.id.toString(),
-            order_id: order.id.toString(),
-            earnings_id: earningsRecord.id.toString(),
-          },
-        });
-
-        // Update earnings record with transfer ID
-        await supabase
-          .from('tutor_earnings')
-          .update({
-            stripe_transfer_id: transfer.id,
-            status: 'released', // Mark as released since transfer is created
-            metadata: {
-              ...earningsRecord.metadata,
-              stripe_transfer_id: transfer.id,
-            }
-          })
-          .eq('id', earningsRecord.id);
-
-        console.log(`[Earnings] Stripe transfer created: ${transfer.id}`);
-
-      } catch (stripeError) {
-        console.error('[Earnings] Failed to create Stripe transfer:', stripeError);
-        // Keep the earnings record as pending
-      }
-    }
-
+    // Transfers are deliberately deferred to the release worker after the
+    // refund/chargeback holding period. Never move money inside a webhook.
     console.log('[Earnings] Tutor earnings processing completed successfully');
 
   } catch (error) {
@@ -201,20 +162,26 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (course && user) {
-          
-          // Enroll user in course
-          const { error: enrollmentError } = await supabase
+          const { data: existingEnrollment } = await supabase
             .from("course_enrollment")
-            .insert({
-              course_id: course.id,
-              user_id: user.id,
-              role: "student",
-              status: "active",
-            });
+            .select("id")
+            .eq("course_id", course.id)
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          // Enroll user in course
+          const { error: enrollmentError } = existingEnrollment
+            ? { error: null }
+            : await supabase.from("course_enrollment").insert({
+                course_id: course.id,
+                user_id: user.id,
+                role: "student",
+                status: "active",
+              });
 
           if (enrollmentError) {
             console.error("[Webhook] Failed to enroll user:", enrollmentError);
-          } else {
+          } else if (!existingEnrollment) {
             console.log("[Webhook] User enrolled successfully, starting auto-creation flow");
             
             // After enrollment, handle complete auto-creation flow
@@ -239,10 +206,11 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          // Update course student count
-          await supabase.rpc("increment_course_students", {
-            course_id: course.id,
-          });
+          if (!existingEnrollment && !enrollmentError) {
+            await supabase.rpc("increment_course_students", {
+              course_id: course.id,
+            });
+          }
 
           // 🚀 NEW: Handle tutor earnings allocation
           console.log("[Webhook] Processing tutor earnings for course sale");

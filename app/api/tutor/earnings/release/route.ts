@@ -4,6 +4,12 @@ import { createAdminClient } from '@/utils/supabase/server';
 // Scheduled task to release earnings that are older than 7 days
 export async function POST(request: NextRequest) {
   try {
+    const cronSecret = process.env.CRON_SECRET;
+    const authorization = request.headers.get('authorization');
+    if (!cronSecret || authorization !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const supabase = await createAdminClient();
     
     // Call the database function to release eligible earnings
@@ -52,11 +58,6 @@ async function processStripeTransfers(supabase: any) {
           id,
           full_name,
           email
-        ),
-        tutor_stripe_accounts (
-          stripe_account_id,
-          charges_enabled,
-          payouts_enabled
         )
       `)
       .eq('status', 'released')
@@ -73,7 +74,12 @@ async function processStripeTransfers(supabase: any) {
 
     for (const earning of pendingTransfers) {
       try {
-        const stripeAccount = earning.tutor_stripe_accounts;
+        const { data: stripeAccount } = await supabase
+          .from('tutor_stripe_accounts')
+          .select('stripe_account_id, charges_enabled, payouts_enabled')
+          .eq('tutor_id', earning.tutor_id)
+          .eq('is_deleted', false)
+          .maybeSingle();
         
         if (!stripeAccount || !stripeAccount.charges_enabled || !stripeAccount.payouts_enabled) {
           console.log(`[Stripe Transfers] Skipping transfer for tutor ${earning.tutor_id} - account not ready`);
@@ -81,17 +87,20 @@ async function processStripeTransfers(supabase: any) {
         }
 
         // Create Stripe transfer
-        const transfer = await stripe.transfers.create({
-          amount: earning.tutor_amount_cents,
-          currency: earning.currency.toLowerCase(),
-          destination: stripeAccount.stripe_account_id,
-          transfer_group: `earnings_release_${earning.id}`,
-          metadata: {
-            tutor_id: earning.tutor_id.toString(),
-            earnings_id: earning.id.toString(),
-            release_type: 'scheduled',
+        const transfer = await stripe.transfers.create(
+          {
+            amount: earning.tutor_amount_cents,
+            currency: earning.currency.toLowerCase(),
+            destination: stripeAccount.stripe_account_id,
+            transfer_group: `earnings_release_${earning.id}`,
+            metadata: {
+              tutor_id: earning.tutor_id.toString(),
+              earnings_id: earning.id.toString(),
+              release_type: 'scheduled',
+            },
           },
-        });
+          { idempotencyKey: `earnings_release_${earning.id}` }
+        );
 
         // Update earnings record with transfer ID
         await supabase

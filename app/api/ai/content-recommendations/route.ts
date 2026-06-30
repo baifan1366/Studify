@@ -733,96 +733,80 @@ async function findQuizzesForLearningPath(
   limit: number
 ) {
   try {
-    const difficultyMap: Record<string, number> = {
-      'beginner': 2,
-      'intermediate': 3,
-      'advanced': 4
-    };
-    const targetDifficulty = difficultyMap[currentLevel.toLowerCase()] || 2;
+    const targetDifficulty = { beginner: 1, intermediate: 2, advanced: 3 }[
+      currentLevel.toLowerCase() as 'beginner' | 'intermediate' | 'advanced'
+    ] || 2;
+    const keywords = searchQuery.split(/\s+/).filter((keyword) => keyword.length > 1).slice(0, 5);
 
-    const keywords = searchQuery.split(' ').filter(k => k.length > 0);
     let query = supabase
-      .from('tutor_quiz')
+      .from('course_quiz_question')
       .select(`
-        id,
         public_id,
-        title,
-        description,
+        lesson_id,
+        question_text,
+        explanation,
         difficulty,
-        estimated_time,
-        question_count,
-        subject:tutor_subjects(name),
-        grade:tutor_grades(name),
-        author:profiles!tutor_quiz_author_id_fkey(
-          display_name,
-          avatar_url
-        )
+        created_at,
+        lesson:course_lesson!inner(public_id, title, course_id, course:course!inner(slug))
       `)
-      .eq('visibility', 'public');
+      .eq('is_deleted', false);
 
     if (keywords.length > 0) {
-      const searchConditions = keywords.map(keyword => 
-        `title.ilike.%${keyword}%,description.ilike.%${keyword}%`
-      ).join(',');
-      query = query.or(searchConditions);
+      query = query.or(
+        keywords.flatMap((keyword) => [
+          `question_text.ilike.%${keyword}%`,
+          `explanation.ilike.%${keyword}%`
+        ]).join(',')
+      );
     }
 
-    const { data: quizzes } = await query
+    let { data: questions, error } = await query
       .order('created_at', { ascending: false })
-      .limit(limit * 2);
+      .limit(Math.max(limit * 8, 20));
 
-    if (!quizzes || quizzes.length === 0) {
-      const { data: recentQuizzes } = await supabase
-        .from('tutor_quiz')
+    if (!error && (!questions || questions.length === 0)) {
+      const fallback = await supabase
+        .from('course_quiz_question')
         .select(`
-          id,
           public_id,
-          title,
-          description,
+          lesson_id,
+          question_text,
+          explanation,
           difficulty,
-          estimated_time,
-          question_count,
-          subject:tutor_subjects(name),
-          grade:tutor_grades(name),
-          author:profiles!tutor_quiz_author_id_fkey(
-            display_name,
-            avatar_url
-          )
+          created_at,
+          lesson:course_lesson!inner(public_id, title, course_id, course:course!inner(slug))
         `)
-        .eq('visibility', 'public')
+        .eq('is_deleted', false)
         .order('created_at', { ascending: false })
-        .limit(limit);
-      
-      return recentQuizzes?.map((quiz: any) => ({
-        id: quiz.public_id,
-        title: quiz.title,
-        description: quiz.description?.substring(0, 150) + '...' || '',
-        difficulty: quiz.difficulty || 3,
-        questions: quiz.question_count || 10,
-        estimatedTime: quiz.estimated_time || 15,
-        subject: quiz.subject?.name,
-        grade: quiz.grade?.name,
-        author: quiz.author?.display_name
-      })) || [];
+        .limit(Math.max(limit * 8, 20));
+      questions = fallback.data;
+      error = fallback.error;
+    }
+    if (error) throw error;
+
+    const grouped = new Map<number, any>();
+    for (const question of questions || []) {
+      const existing = grouped.get(question.lesson_id) || {
+        id: question.lesson?.public_id,
+        title: question.lesson?.title ? `${question.lesson.title} Practice` : 'Lesson Practice',
+        description: question.explanation || question.question_text,
+        difficulty: question.difficulty || 2,
+        questions: 0,
+        estimatedTime: 0,
+        lessonId: question.lesson?.public_id,
+        href: question.lesson?.course?.slug
+          ? `/courses/${question.lesson.course.slug}/learn?lesson=${question.lesson.public_id}`
+          : '/courses'
+      };
+      existing.questions += 1;
+      existing.estimatedTime = Math.max(5, existing.questions * 2);
+      existing.difficulty = Math.round((existing.difficulty + (question.difficulty || 2)) / 2);
+      grouped.set(question.lesson_id, existing);
     }
 
-    const sortedQuizzes = quizzes.sort((a: any, b: any) => {
-      const aDiffDist = Math.abs((a.difficulty || 3) - targetDifficulty);
-      const bDiffDist = Math.abs((b.difficulty || 3) - targetDifficulty);
-      return aDiffDist - bDiffDist;
-    });
-
-    return sortedQuizzes.slice(0, limit).map((quiz: any) => ({
-      id: quiz.public_id,
-      title: quiz.title,
-      description: quiz.description?.substring(0, 150) + '...' || '',
-      difficulty: quiz.difficulty || 3,
-      questions: quiz.question_count || 10,
-      estimatedTime: quiz.estimated_time || 15,
-      subject: quiz.subject?.name,
-      grade: quiz.grade?.name,
-      author: quiz.author?.display_name
-    }));
+    return [...grouped.values()]
+      .sort((a, b) => Math.abs(a.difficulty - targetDifficulty) - Math.abs(b.difficulty - targetDifficulty))
+      .slice(0, limit);
   } catch (error) {
     console.error('Error finding quizzes for learning path:', error);
     return [];

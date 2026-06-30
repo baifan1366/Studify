@@ -53,7 +53,13 @@ export class NotificationService {
 
       // Send push notification if requested
       if (data.send_push && data.title && data.message) {
-        await this.sendPushNotification(data.user_id, data.title, data.message, data);
+        await this.sendPushNotification(
+          data.user_id,
+          notification.id,
+          data.title,
+          data.message,
+          data
+        );
       }
 
       return notification;
@@ -100,6 +106,7 @@ export class NotificationService {
    */
   private async sendPushNotification(
     userId: number,
+    notificationId: number,
     title: string,
     message: string,
     data: NotificationData
@@ -147,7 +154,7 @@ export class NotificationService {
       // Log delivery attempt
       if (response?.id) {
         await supabase.from('notification_delivery_log').insert({
-          notification_id: userId, // You may want to pass actual notification ID
+          notification_id: notificationId,
           delivery_method: 'push',
           onesignal_notification_id: response.id,
           delivery_status: 'sent',
@@ -161,7 +168,7 @@ export class NotificationService {
       // Log failed delivery
       try {
         await supabase.from('notification_delivery_log').insert({
-          notification_id: userId,
+          notification_id: notificationId,
           delivery_method: 'push',
           delivery_status: 'failed',
           error_message: error instanceof Error ? error.message : 'Unknown error',

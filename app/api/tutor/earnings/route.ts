@@ -440,36 +440,31 @@ export async function POST(request: NextRequest) {
 
     const tutorId = user.profile?.id || user.id;
 
-    // 这里可以添加提现逻辑
-    // 1. 检查导师的可提现余额
-    // 2. 创建提现请求记录
-    // 3. 更新相关订单状态等
+    const { data: available } = await client
+      .from('tutor_earnings')
+      .select('tutor_amount_cents')
+      .eq('tutor_id', tutorId)
+      .eq('status', 'released')
+      .is('stripe_transfer_id', null)
+      .eq('is_deleted', false);
 
-    // 示例：创建提现请求记录（需要相应的数据表）
-    /*
-    const { data: payoutRequest, error: payoutError } = await client
-      .from('tutor_payout_request')
-      .insert({
-        tutor_id: tutorId,
-        amount_cents,
-        payment_method,
-        status: 'pending',
-        requested_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-    */
+    const availableCents = (available || []).reduce(
+      (sum, earning) => sum + earning.tutor_amount_cents,
+      0
+    );
 
+    // Transfers are automatic. A fake "submitted" response is worse than an
+    // explicit state because it makes money appear to have moved when it did not.
     return NextResponse.json({
-      success: true,
-      message: 'Payout request submitted successfully',
+      success: false,
+      error: 'Payouts are processed automatically after the holding period.',
       data: {
-        amount_cents,
+        requested_amount_cents: amount_cents,
+        available_amount_cents: availableCents,
         payment_method,
-        status: 'pending',
-        estimated_processing_days: 3
+        payout_mode: 'automatic',
       }
-    });
+    }, { status: 409 });
 
   } catch (error) {
     console.error('Error in POST /api/tutor/earnings/payout:', error);

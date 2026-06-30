@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateCommunityPostRecommendations } from '@/lib/langChain/tools/course-recommendation-tool';
+import { authorize } from '@/utils/auth/server-guard';
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await authorize('student');
+    if (auth instanceof NextResponse) return auth;
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-    const maxResults = parseInt(searchParams.get('maxResults') || '10');
+    const userId = auth.user.profile?.id;
+    const maxResults = Math.min(Math.max(parseInt(searchParams.get('maxResults') || '10'), 1), 20);
     const excludeOwnPosts = searchParams.get('excludeOwnPosts') !== 'false';
     const groupFilter = searchParams.get('groupId');
     const includePrivateGroups = searchParams.get('includePrivateGroups') === 'true';
@@ -17,7 +20,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const recommendations = await generateCommunityPostRecommendations(parseInt(userId), {
+    const recommendations = await generateCommunityPostRecommendations(Number(userId), {
       maxResults,
       excludeOwnPosts,
       groupFilter: groupFilter ? parseInt(groupFilter) : undefined,

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
+function normalizeTimestampSeconds(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const seconds = Number(value);
+  return Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : null;
+}
+
 // GET - Fetch notes for a lesson or course
 export async function GET(request: NextRequest) {
   try {
@@ -198,7 +204,7 @@ export async function POST(request: NextRequest) {
         user_id: profile.id,
         lesson_id: lessonInternalId,
         course_id: courseInternalId,
-        timestamp_sec: timestampSec,
+        timestamp_sec: normalizeTimestampSeconds(timestampSec),
         content,
         ai_summary: aiSummary,
         tags: tags || [],
@@ -297,7 +303,9 @@ export async function PATCH(request: NextRequest) {
       updates.ai_summary = null;
     }
     if (tags !== undefined) updates.tags = tags;
-    if (timestampSec !== undefined) updates.timestamp_sec = timestampSec;
+    if (timestampSec !== undefined) {
+      updates.timestamp_sec = normalizeTimestampSeconds(timestampSec);
+    }
     if (title !== undefined) updates.title = title;
 
     // Update note (ensure user owns it)

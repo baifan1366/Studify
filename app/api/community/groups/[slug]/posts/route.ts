@@ -63,7 +63,7 @@ export async function GET(
     .select(
       `
       *,
-      author:profiles ( display_name, avatar_url ),
+      author:profiles ( display_name, avatar_url, community_title ),
       group:community_group ( name, slug, visibility ),
       comments:community_comment ( count ),
       post_hashtags(hashtags(id, name))
@@ -311,7 +311,7 @@ export async function POST(
         author_id: profile.id,
       })
       .select(
-        "*, author:profiles ( display_name, avatar_url ), group:community_group ( name, slug, visibility )"
+        "*, author:profiles ( display_name, avatar_url, community_title ), group:community_group ( name, slug, visibility )"
       )
       .single();
 

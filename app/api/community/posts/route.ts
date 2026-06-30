@@ -50,7 +50,7 @@ export async function GET(request: Request) {
         created_at,
         updated_at,
         deleted_at,
-        author:profiles!community_post_author_id_fkey ( display_name, avatar_url ),
+        author:profiles!community_post_author_id_fkey ( display_name, avatar_url, community_title ),
         group:community_group ( name, slug, visibility )
       `
       )

@@ -22,9 +22,21 @@ export async function POST(request: NextRequest) {
     const userId = user.profile?.id || user.id;
 
     // 开始数据库事务
+    const courseColumn = /^\d+$/.test(String(courseId)) ? 'id' : 'public_id';
+    const { data: course, error: courseError } = await client
+      .from('course')
+      .select('id')
+      .eq(courseColumn, courseId)
+      .eq('is_deleted', false)
+      .maybeSingle();
+
+    if (courseError || !course) {
+      return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+    }
+
     const { data: transactionResult, error: transactionError } = await client.rpc('redeem_course_with_points', {
       p_user_id: userId,
-      p_course_id: courseId
+      p_course_id: course.id
     });
 
     if (transactionError) {
@@ -32,6 +44,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ 
         error: transactionError.message || 'Failed to redeem course' 
       }, { status: 400 });
+    }
+
+    if (transactionResult?.error) {
+      return NextResponse.json(
+        { error: transactionResult.error, data: transactionResult },
+        { status: transactionResult.error === 'Insufficient points' ? 409 : 400 }
+      );
     }
 
     return NextResponse.json({

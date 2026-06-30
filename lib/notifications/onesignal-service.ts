@@ -1,9 +1,17 @@
 // OneSignal API service for server-side operations
-import { createClient } from '@supabase/supabase-js';
+const ONESIGNAL_API_URL = 'https://api.onesignal.com/notifications';
 
-const ONESIGNAL_API_URL = 'https://onesignal.com/api/v1';
-const ONESIGNAL_APP_ID = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID!;
-const ONESIGNAL_REST_API_KEY = process.env.ONESIGNAL_REST_API_KEY!;
+function getOneSignalConfig() {
+  const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID?.trim();
+  const rawApiKey = (
+    process.env.ONESIGNAL_API_KEY ||
+    process.env.ONESIGNAL_REST_API_KEY
+  )?.trim();
+  const apiKey = rawApiKey?.replace(/^(?:basic|key)\s+/i, '');
+
+  if (!appId || !apiKey) return null;
+  return { appId, apiKey };
+}
 
 export interface OneSignalNotification {
   app_id?: string;
@@ -34,25 +42,30 @@ export interface OneSignalResponse {
   recipients: number;
   external_id?: string;
   errors?: any[];
+  skipped?: boolean;
 }
 
 export class OneSignalService {
-  private headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`,
-  };
-
   /**
    * Send a notification via OneSignal API
    */
   async sendNotification(notification: OneSignalNotification): Promise<OneSignalResponse> {
+    const config = getOneSignalConfig();
+    if (!config) {
+      console.warn('OneSignal push skipped: app ID or API key is not configured.');
+      return { id: '', recipients: 0, skipped: true };
+    }
+
     try {
-      const response = await fetch(`${ONESIGNAL_API_URL}/notifications`, {
+      const response = await fetch(ONESIGNAL_API_URL, {
         method: 'POST',
-        headers: this.headers,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Key ${config.apiKey}`,
+        },
         body: JSON.stringify({
           ...notification,
-          app_id: ONESIGNAL_APP_ID,
+          app_id: config.appId,
         }),
       });
 
@@ -79,7 +92,6 @@ export class OneSignalService {
     options?: Partial<OneSignalNotification>
   ): Promise<OneSignalResponse> {
     return this.sendNotification({
-      app_id: ONESIGNAL_APP_ID,
       headings: { en: title },
       contents: { en: message },
       include_external_user_ids: userIds,
@@ -99,7 +111,6 @@ export class OneSignalService {
     options?: Partial<OneSignalNotification>
   ): Promise<OneSignalResponse> {
     return this.sendNotification({
-      app_id: ONESIGNAL_APP_ID,
       headings: { en: title },
       contents: { en: message },
       included_segments: [segment],
@@ -137,10 +148,13 @@ export class OneSignalService {
    * Cancel a scheduled notification
    */
   async cancelNotification(notificationId: string): Promise<boolean> {
+    const config = getOneSignalConfig();
+    if (!config) return false;
+
     try {
-      const response = await fetch(`${ONESIGNAL_API_URL}/notifications/${notificationId}`, {
+      const response = await fetch(`${ONESIGNAL_API_URL}/${notificationId}?app_id=${config.appId}`, {
         method: 'DELETE',
-        headers: this.headers,
+        headers: { Authorization: `Key ${config.apiKey}` },
       });
 
       return response.ok;
@@ -154,9 +168,12 @@ export class OneSignalService {
    * Get notification details
    */
   async getNotification(notificationId: string): Promise<any> {
+    const config = getOneSignalConfig();
+    if (!config) throw new Error('OneSignal is not configured');
+
     try {
-      const response = await fetch(`${ONESIGNAL_API_URL}/notifications/${notificationId}?app_id=${ONESIGNAL_APP_ID}`, {
-        headers: this.headers,
+      const response = await fetch(`${ONESIGNAL_API_URL}/${notificationId}?app_id=${config.appId}`, {
+        headers: { Authorization: `Key ${config.apiKey}` },
       });
 
       if (!response.ok) {
@@ -174,9 +191,12 @@ export class OneSignalService {
    * Get app statistics
    */
   async getAppStats(): Promise<any> {
+    const config = getOneSignalConfig();
+    if (!config) throw new Error('OneSignal is not configured');
+
     try {
-      const response = await fetch(`${ONESIGNAL_API_URL}/apps/${ONESIGNAL_APP_ID}`, {
-        headers: this.headers,
+      const response = await fetch(`https://api.onesignal.com/apps/${config.appId}`, {
+        headers: { Authorization: `Key ${config.apiKey}` },
       });
 
       if (!response.ok) {
@@ -201,7 +221,6 @@ export class OneSignalService {
     type: 'new_lesson' | 'assignment_due' | 'course_update' = 'course_update'
   ): OneSignalNotification {
     return {
-      app_id: ONESIGNAL_APP_ID,
       headings: { en: `📚 ${courseTitle}` },
       contents: { en: message },
       include_external_user_ids: userIds,
@@ -229,7 +248,6 @@ export class OneSignalService {
     };
 
     return {
-      app_id: ONESIGNAL_APP_ID,
       headings: { en: `${icons[type]} ${classroomName}` },
       contents: { en: message },
       include_external_user_ids: userIds,
@@ -257,7 +275,6 @@ export class OneSignalService {
     };
 
     return {
-      app_id: ONESIGNAL_APP_ID,
       headings: { en: `${icons[type]} ${groupName}` },
       contents: { en: message },
       include_external_user_ids: userIds,

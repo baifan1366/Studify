@@ -13,10 +13,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, X, Users, User, Loader2, Send } from "lucide-react";
+import { Search, X, Users, User, Loader2, Send, Copy, ExternalLink } from "lucide-react";
 import { Post } from "@/interface/community/post-interface";
 import { useTranslations } from "next-intl";
 import MegaImage from "@/components/attachment/mega-blob-image";
+import { toast } from "sonner";
 
 interface SearchResult {
   id: number;
@@ -50,6 +51,45 @@ export default function SharePostDialog({
   const [isSearching, setIsSearching] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const t = useTranslations("SharePost");
+
+  const getPublicPostUrl = () => {
+    const origin = typeof window === "undefined" ? "" : window.location.origin;
+    return post.group?.slug
+      ? `${origin}/community/${post.group.slug}/posts/${post.slug}`
+      : `${origin}/community?post=${post.public_id}`;
+  };
+
+  const shareExternally = async (network: "x" | "instagram" | "xiaohongshu" | "tiktok") => {
+    const url = getPublicPostUrl();
+    const text = [post.title, post.body].filter(Boolean).join("\n\n").slice(0, 500);
+
+    if (network === "x") {
+      window.open(
+        `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
+        "_blank",
+        "noopener,noreferrer"
+      );
+      return;
+    }
+
+    if (navigator.share && (network === "instagram" || network === "tiktok")) {
+      try {
+        await navigator.share({ title: post.title || "Studify post", text, url });
+        return;
+      } catch {
+        // User cancellation and unsupported share targets fall back to copy.
+      }
+    }
+
+    await navigator.clipboard.writeText(`${text}\n\n${url}`);
+    toast.success(`Copied for ${network === "xiaohongshu" ? "Xiaohongshu" : network}`);
+    const destinations = {
+      instagram: "https://www.instagram.com/",
+      xiaohongshu: "https://www.xiaohongshu.com/explore",
+      tiktok: "https://www.tiktok.com/upload",
+    };
+    window.open(destinations[network], "_blank", "noopener,noreferrer");
+  };
 
   // 搜索用户和群组
   const searchUsersAndGroups = async (query: string) => {
@@ -193,6 +233,27 @@ export default function SharePostDialog({
             </div>
           </CardContent>
         </Card>
+
+        <div className="space-y-2">
+          <p className="text-sm text-gray-300">Share outside Studify</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <Button variant="outline" size="sm" onClick={() => shareExternally("x")}>
+              <ExternalLink className="mr-1 h-3.5 w-3.5" /> X
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => shareExternally("instagram")}>
+              <Copy className="mr-1 h-3.5 w-3.5" /> Instagram
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => shareExternally("xiaohongshu")}>
+              <Copy className="mr-1 h-3.5 w-3.5" /> 小红书
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => shareExternally("tiktok")}>
+              <Copy className="mr-1 h-3.5 w-3.5" /> TikTok
+            </Button>
+          </div>
+          <p className="text-xs text-gray-500">
+            Instagram, Xiaohongshu and TikTok do not provide a general web-post API; the post is handed to the native share sheet or copied for publishing.
+          </p>
+        </div>
 
         {/* Selected Targets */}
         {selectedTargets.length > 0 && (

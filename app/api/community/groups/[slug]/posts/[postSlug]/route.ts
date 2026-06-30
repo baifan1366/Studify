@@ -73,7 +73,7 @@ export async function GET(
       slug,
       created_at,
       updated_at,
-      author:profiles ( display_name, avatar_url ),
+      author:profiles ( display_name, avatar_url, community_title ),
       group:community_group ( 
         name, 
         slug, 
@@ -81,7 +81,7 @@ export async function GET(
         user_membership:community_group_member!community_group_member_group_id_fkey ( user_id, role, joined_at )
       ),
       comments:community_comment ( *,
-        author:profiles ( display_name, avatar_url )
+        author:profiles ( display_name, avatar_url, community_title )
       )
     `
     )
@@ -263,7 +263,7 @@ export async function PUT(
     .select(
       `
       *,
-      author:profiles ( display_name, avatar_url ),
+      author:profiles ( display_name, avatar_url, community_title ),
       group:community_group ( name, slug, visibility )
     `
     )
@@ -437,7 +437,7 @@ export async function PATCH(
     .select(
       `
       *,
-      author:profiles ( display_name, avatar_url ),
+      author:profiles ( display_name, avatar_url, community_title ),
       group:community_group ( name, slug, visibility )
     `
     )

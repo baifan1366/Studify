@@ -1,10 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import remarkGfm from "remark-gfm";
 import { Check, Copy, ExternalLink, MessageCircle, Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +18,7 @@ export function AIMarkdownMessage({ content, onAsk, className }: Props) {
   const [scale, setScale] = useState(1);
   const [copied, setCopied] = useState(false);
   const [selection, setSelection] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [renderError, setRenderError] = useState(false);
 
   const captureSelection = () => {
     const selected = window.getSelection();
@@ -37,18 +37,49 @@ export function AIMarkdownMessage({ content, onAsk, className }: Props) {
     window.setTimeout(() => setCopied(false), 1500);
   };
 
-  const normalizedContent = content
-    .replace(/\|\|\s*(?=\|?\s*:?-{3,})/g, "|\n|")
-    .replace(/([^\n])\n(#{1,6}\s)/g, "$1\n\n$2")
-    .replace(/【(https?:\/\/[^】\s]+)】/g, (_match, url: string) => {
-      try {
-        return `[${new URL(url).hostname.replace(/^www\./, "")}](${url})`;
-      } catch {
-        return `[Source](${url})`;
+  const normalizedContent = (() => {
+    try {
+      return content
+        // Remove any double pipes that might confuse table parsing
+        .replace(/\|\|/g, "| |")
+        // Ensure headings have proper spacing
+        .replace(/([^\n])\n(#{1,6}\s)/g, "$1\n\n$2")
+        // Convert Chinese-style references to markdown links
+        .replace(/【(https?:\/\/[^】\s]+)】/g, (_match, url: string) => {
+          try {
+            return `[${new URL(url).hostname.replace(/^www\./, "")}](${url})`;
+          } catch {
+            return `[Source](${url})`;
+          }
+        })
+        // Convert video timestamp references
+        .replace(/【Video\s+(\d{1,2}:\d{2})】/gi, "`Video · $1`")
+        // Convert other Chinese-style brackets to bold
+        .replace(/【([^】]+)】/g, "**$1**");
+    } catch (error) {
+      console.error('Content normalization error:', error);
+      return content;
+    }
+  })();
+
+  // Add error boundary for markdown parsing
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      if (event.message?.includes('inTable') || event.message?.includes('remark') || event.message?.includes('markdown')) {
+        console.error('Markdown rendering error:', event.error);
+        setRenderError(true);
+        event.preventDefault();
       }
-    })
-    .replace(/【Video\s+(\d{1,2}:\d{2})】/gi, "`Video · $1`")
-    .replace(/【([^】]+)】/g, "**$1**");
+    };
+    
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
+  // Reset error state when content changes
+  useEffect(() => {
+    setRenderError(false);
+  }, [content]);
 
   return (
     <div ref={rootRef} className={cn("relative", className)} onMouseUp={captureSelection}>
@@ -60,40 +91,53 @@ export function AIMarkdownMessage({ content, onAsk, className }: Props) {
         </button>
       </div>
       <div className="max-w-none origin-top-left text-foreground" style={{ fontSize: `${scale}rem` }}>
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm as any, remarkMath as any]}
-          rehypePlugins={[rehypeKatex as any]}
-          components={{
-            h1: ({ children }) => <h1 className="mb-4 mt-7 text-xl font-semibold tracking-tight first:mt-0">{children}</h1>,
-            h2: ({ children }) => <h2 className="mb-3 mt-7 border-b border-border/60 pb-2 text-lg font-semibold tracking-tight first:mt-0">{children}</h2>,
-            h3: ({ children }) => <h3 className="mb-2 mt-6 text-base font-semibold tracking-tight first:mt-0">{children}</h3>,
-            p: ({ children }) => <p className="my-3 leading-7 text-foreground/90 first:mt-0 last:mb-0">{children}</p>,
-            ul: ({ children }) => <ul className="my-4 space-y-2 pl-5 marker:text-muted-foreground">{children}</ul>,
-            ol: ({ children }) => <ol className="my-4 list-decimal space-y-3 pl-6 marker:font-medium marker:text-muted-foreground">{children}</ol>,
-            li: ({ children }) => <li className="pl-1 leading-7 text-foreground/90">{children}</li>,
-            blockquote: ({ children }) => <blockquote className="my-4 border-l-2 border-blue-500/60 pl-4 text-muted-foreground">{children}</blockquote>,
-            hr: () => <hr className="my-7 border-border/70" />,
-            strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
-            code: ({ children, className: codeClass }) => codeClass ? (
-              <code className={cn("font-mono text-sm", codeClass)}>{children}</code>
-            ) : (
-              <code className="rounded-md border border-border/70 bg-muted px-1.5 py-0.5 font-mono text-[.86em] text-foreground">{children}</code>
-            ),
-            pre: ({ children }) => <pre className="my-4 overflow-x-auto rounded-xl border border-border bg-muted/60 p-4 text-sm leading-6">{children}</pre>,
-            a: ({ href, children }) => (
-              <a href={href} target="_blank" rel="noopener noreferrer" className="mx-0.5 inline-flex max-w-full items-center gap-1 rounded-md bg-blue-500/10 px-1.5 py-0.5 align-baseline text-[.88em] font-medium text-blue-600 no-underline hover:bg-blue-500/15 dark:text-blue-300">
-                <span className="truncate">{children}</span><ExternalLink className="h-3 w-3 shrink-0" />
-              </a>
-            ),
-          }}
-        >
-          {normalizedContent}
-        </ReactMarkdown>
+        {renderError ? (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+            <p className="text-sm text-amber-600 dark:text-amber-400 mb-2 font-medium">Unable to render formatted content</p>
+            <pre className="whitespace-pre-wrap text-xs text-foreground/80 leading-relaxed">{content}</pre>
+          </div>
+        ) : (
+          <ReactMarkdown
+            remarkPlugins={[remarkMath as any]}
+            rehypePlugins={[rehypeKatex as any]}
+            components={{
+              h1: ({ children }) => <h1 className="mb-4 mt-7 text-xl font-semibold tracking-tight first:mt-0">{children}</h1>,
+              h2: ({ children }) => <h2 className="mb-3 mt-7 border-b border-border/60 pb-2 text-lg font-semibold tracking-tight first:mt-0">{children}</h2>,
+              h3: ({ children }) => <h3 className="mb-2 mt-6 text-base font-semibold tracking-tight first:mt-0">{children}</h3>,
+              p: ({ children }) => <p className="my-3 leading-7 text-foreground/90 first:mt-0 last:mb-0">{children}</p>,
+              ul: ({ children }) => <ul className="my-4 space-y-2 pl-5 marker:text-muted-foreground">{children}</ul>,
+              ol: ({ children }) => <ol className="my-4 list-decimal space-y-3 pl-6 marker:font-medium marker:text-muted-foreground">{children}</ol>,
+              li: ({ children }) => <li className="pl-1 leading-7 text-foreground/90">{children}</li>,
+              blockquote: ({ children }) => <blockquote className="my-4 border-l-2 border-blue-500/60 pl-4 text-muted-foreground">{children}</blockquote>,
+              hr: () => <hr className="my-7 border-border/70" />,
+              strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+              table: ({ children }) => <table className="my-4 w-full border-collapse text-sm">{children}</table>,
+              thead: ({ children }) => <thead className="bg-muted">{children}</thead>,
+              tbody: ({ children }) => <tbody className="divide-y divide-border">{children}</tbody>,
+              tr: ({ children }) => <tr className="border-b border-border">{children}</tr>,
+              th: ({ children }) => <th className="px-4 py-2 text-left font-semibold">{children}</th>,
+              td: ({ children }) => <td className="px-4 py-2">{children}</td>,
+              code: ({ children, className: codeClass }) => codeClass ? (
+                <code className={cn("font-mono text-sm", codeClass)}>{children}</code>
+              ) : (
+                <code className="rounded-md border border-border/70 bg-muted px-1.5 py-0.5 font-mono text-[.86em] text-foreground">{children}</code>
+              ),
+              pre: ({ children }) => <pre className="my-4 overflow-x-auto rounded-xl border border-border bg-muted/60 p-4 text-sm leading-6">{children}</pre>,
+              a: ({ href, children }) => (
+                <a href={href} target="_blank" rel="noopener noreferrer" className="mx-0.5 inline-flex max-w-full items-center gap-1 rounded-md bg-blue-500/10 px-1.5 py-0.5 align-baseline text-[.88em] font-medium text-blue-600 no-underline hover:bg-blue-500/15 dark:text-blue-300">
+                  <span className="truncate">{children}</span><ExternalLink className="h-3 w-3 shrink-0" />
+                </a>
+              ),
+            }}
+          >
+            {normalizedContent}
+          </ReactMarkdown>
+        )}
       </div>
       {selection && onAsk && (
         <button
           type="button"
-          className="fixed z-[70] flex -translate-x-1/2 -translate-y-full items-center gap-1.5 rounded-full border bg-popover px-3 py-1.5 text-xs font-medium text-popover-foreground shadow-xl"
+          className="fixed z-70 flex -translate-x-1/2 -translate-y-full items-center gap-1.5 rounded-full border bg-popover px-3 py-1.5 text-xs font-medium text-popover-foreground shadow-xl"
           style={{ left: selection.x, top: selection.y }}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => { onAsk(`Explain this selection in context: "${selection.text}"`); setSelection(null); }}

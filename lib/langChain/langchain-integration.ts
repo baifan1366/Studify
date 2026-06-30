@@ -313,11 +313,11 @@ Format your response in clear markdown with proper headings and formatting.`;
     const llm = isImageAnalysis 
       ? await getLLM({
           temperature: 0.3,
-          model: process.env.OPEN_ROUTER_IMAGE_MODEL || 'moonshotai/kimi-vl-a3b-thinking:free'
+          model: process.env.OPEN_ROUTER_IMAGE_MODEL || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'
         })
       : await getLLM({
           temperature: 0.3,
-          model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+          model: process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha'
         });
     
     const response = await llm.invoke([new HumanMessage(prompt)]);
@@ -411,7 +411,7 @@ Please format your response as JSON:
     try {
       const llm = await getLLM({
         temperature: 0.3,
-        model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+        model: process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha'
       });
       
       const enhancementResponse = await llm.invoke([new HumanMessage(enhancementPrompt)]);
@@ -481,7 +481,7 @@ Please format your response as JSON:
 }`;
 
       try {
-        const selectedModel = model || process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free';
+        const selectedModel = model || process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha';
         console.log(`🎯 answerQuestion using model: ${selectedModel}`);
         
         const llm = await getAnalyticalLLM({
@@ -535,7 +535,7 @@ Please respond with JSON:
 }`;
 
     try {
-      const selectedModel = model || process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free';
+      const selectedModel = model || process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha';
       
       const llm = await getAnalyticalLLM({
         temperature: 0.2,

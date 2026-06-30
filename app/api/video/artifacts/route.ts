@@ -49,17 +49,51 @@ export async function GET(request: NextRequest) {
     lessonInternalId = lesson.id;
   }
 
-  let query = context.supabase
+  let artifactQuery = context.supabase
     .from("video_learning_artifacts")
     .select("public_id, artifact_type, title, content, source_timestamp_sec, generation_status, created_at, updated_at, lesson:course_lesson(title, public_id)")
     .eq("user_id", context.profile.id)
     .is("deleted_at", null)
     .order("updated_at", { ascending: false })
     .limit(50);
-  if (lessonInternalId) query = query.eq("lesson_id", lessonInternalId);
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ artifacts: data ?? [] });
+  let noteQuery = context.supabase
+    .from("course_notes")
+    .select("public_id, title, content, timestamp_sec, created_at, updated_at, lesson:course_lesson(title, public_id)")
+    .eq("user_id", context.profile.id)
+    .eq("is_deleted", false)
+    .order("updated_at", { ascending: false })
+    .limit(50);
+  if (lessonInternalId) {
+    artifactQuery = artifactQuery.eq("lesson_id", lessonInternalId);
+    noteQuery = noteQuery.eq("lesson_id", lessonInternalId);
+  }
+
+  const [{ data: artifactRows, error: artifactError }, { data: noteRows, error: noteError }] =
+    await Promise.all([artifactQuery, noteQuery]);
+  if (artifactError || noteError) {
+    return NextResponse.json({ error: artifactError?.message || noteError?.message }, { status: 500 });
+  }
+
+  const notes = (noteRows || []).map((note) => ({
+    public_id: note.public_id,
+    artifact_type: "note" as const,
+    source_kind: "course_note" as const,
+    title: note.title || "Study note",
+    content: { markdown: note.content },
+    source_timestamp_sec: note.timestamp_sec,
+    created_at: note.created_at,
+    updated_at: note.updated_at,
+    lesson: note.lesson,
+  }));
+  const artifacts = (artifactRows || []).map((artifact) => ({
+    ...artifact,
+    source_kind: "video_artifact" as const,
+  }));
+  return NextResponse.json({
+    artifacts: [...notes, ...artifacts].sort(
+      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    ),
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -104,6 +138,37 @@ ${transcript}`);
     : response.content.map((part: any) => part.text || "").join("");
   const generated = parseJson(raw);
 
+  if (type === "note") {
+    const { data: note, error: noteError } = await context.supabase
+      .from("course_notes")
+      .insert({
+        user_id: context.profile.id,
+        lesson_id: lesson.id,
+        course_id: lesson.course_id ?? module?.course_id ?? null,
+        timestamp_sec: Math.max(0, Math.floor(Number(body.timestampSec || 0))),
+        title: generated.title || `${lesson.title} notes`,
+        content: generated.markdown || "",
+        tags: ["ai-generated", "video-note"],
+        note_type: "ai_generated",
+      })
+      .select("public_id, title, content, timestamp_sec, created_at, updated_at")
+      .single();
+    if (noteError) return NextResponse.json({ error: noteError.message }, { status: 500 });
+    return NextResponse.json({
+      artifact: {
+        public_id: note.public_id,
+        artifact_type: "note",
+        source_kind: "course_note",
+        title: note.title,
+        content: { markdown: note.content },
+        source_timestamp_sec: note.timestamp_sec,
+        created_at: note.created_at,
+        updated_at: note.updated_at,
+        lesson: { title: lesson.title, public_id: lessonId },
+      },
+    }, { status: 201 });
+  }
+
   const { data: artifact, error } = await context.supabase
     .from("video_learning_artifacts")
     .insert({
@@ -128,6 +193,34 @@ export async function PATCH(request: NextRequest) {
   const body = await request.json();
   if (!body.id || !body.title || !body.content) {
     return NextResponse.json({ error: "id, title and content are required" }, { status: 400 });
+  }
+  if (body.sourceKind === "course_note") {
+    const { data: note, error: noteError } = await context.supabase
+      .from("course_notes")
+      .update({
+        title: String(body.title).slice(0, 200),
+        content: String(body.content.markdown || ""),
+        ai_summary: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("public_id", body.id)
+      .eq("user_id", context.profile.id)
+      .eq("is_deleted", false)
+      .select("public_id, title, content, timestamp_sec, created_at, updated_at")
+      .single();
+    if (noteError) return NextResponse.json({ error: noteError.message }, { status: 500 });
+    return NextResponse.json({
+      artifact: {
+        public_id: note.public_id,
+        artifact_type: "note",
+        source_kind: "course_note",
+        title: note.title,
+        content: { markdown: note.content },
+        source_timestamp_sec: note.timestamp_sec,
+        created_at: note.created_at,
+        updated_at: note.updated_at,
+      },
+    });
   }
   const { data, error } = await context.supabase
     .from("video_learning_artifacts")

@@ -17,13 +17,14 @@ type Artifact = {
   title: string;
   content: any;
   updated_at: string;
+  source_kind?: "course_note" | "video_artifact";
   lesson?: { title?: string; public_id?: string } | null;
 };
 
 const actions = [
-  { type: "note" as const, label: "Generate note", icon: BookOpenText },
+  { type: "note" as const, label: "Generate AI note", icon: BookOpenText },
   { type: "mind_map" as const, label: "Generate mind map", icon: BrainCircuit },
-  { type: "quiz" as const, label: "Generate quiz", icon: FileQuestion },
+  { type: "quiz" as const, label: "Generate practice quiz", icon: FileQuestion },
 ];
 
 export function VideoLearningArtifacts({
@@ -44,12 +45,19 @@ export function VideoLearningArtifacts({
   const [draft, setDraft] = useState("");
   const { toast } = useToast();
 
-  const load = async () => {
+  useEffect(() => {
+    const controller = new AbortController();
     const query = lessonId ? `?lessonId=${encodeURIComponent(lessonId)}` : "";
-    const response = await fetch(`/api/video/artifacts${query}`);
-    if (response.ok) setArtifacts((await response.json()).artifacts || []);
-  };
-  useEffect(() => { void load(); }, [lessonId]);
+    void fetch(`/api/video/artifacts${query}`, { signal: controller.signal })
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((data) => setArtifacts(data.artifacts || []))
+      .catch((error) => {
+        if (error?.name !== "AbortError") {
+          toast({ title: "Could not load your study library", variant: "destructive" });
+        }
+      });
+    return () => controller.abort();
+  }, [lessonId, toast]);
 
   const open = (artifact: Artifact) => {
     setActive(artifact);
@@ -93,7 +101,7 @@ export function VideoLearningArtifacts({
       const response = await fetch("/api/video/artifacts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: active.public_id, title, content }),
+        body: JSON.stringify({ id: active.public_id, title, content, sourceKind: active.source_kind }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Save failed");
@@ -133,7 +141,7 @@ export function VideoLearningArtifacts({
             </button>
           )})}
         </div>
-      ) : library ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">Generate notes, mind maps, or quizzes while watching a video. They will appear here.</div> : null}
+      ) : library ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">Your saved notes, mind maps, and practice quizzes will appear here.</div> : null}
 
       <Dialog open={!!active} onOpenChange={(value) => !value && setActive(null)}>
         <DialogContent className="max-h-[88vh] max-w-3xl overflow-y-auto">

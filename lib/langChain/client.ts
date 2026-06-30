@@ -86,7 +86,7 @@ export interface GrokConfig {
 
 // 默认配置
 const DEFAULT_GROK_CONFIG: GrokConfig = {
-  model: process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free",
+  model: process.env.OPEN_ROUTER_MODEL || "openrouter/owl-alpha",
   temperature: 0.3,
   maxTokens: 8000, // Reduced to fit within 16K context limit (leaving room for input tokens)
   topP: 1.0,
@@ -199,7 +199,7 @@ export function getReasoningLLM(config: Partial<GrokConfig> = {}) {
     model:
       process.env.OPEN_ROUTER_REASONING_MODEL ||
       process.env.OPEN_ROUTER_MODEL ||
-      "z-ai/glm-4.5-air:free",
+      "openrouter/owl-alpha",
   });
 }
 
@@ -212,7 +212,7 @@ export function getCreativeLLM(config: Partial<GrokConfig> = {}) {
     model:
       process.env.OPEN_ROUTER_CREATIVE_MODEL ||
       process.env.OPEN_ROUTER_MODEL ||
-      "z-ai/glm-4.5-air:free",
+      "openrouter/owl-alpha",
     temperature: 0.8, // 高温度增加创意性
     topP: 0.9,
     frequencyPenalty: 0.1,
@@ -229,7 +229,7 @@ export function getAnalyticalLLM(config: Partial<GrokConfig> = {}) {
     model:
       process.env.OPEN_ROUTER_ANALYTICAL_MODEL ||
       process.env.OPEN_ROUTER_MODEL ||
-      "z-ai/glm-4.5-air:free",
+      "openrouter/owl-alpha",
     temperature: 0.1, // 低温度确保一致性
     topP: 0.95,
     enableReasoning: false, // DeepSeek doesn't support reasoning mode
@@ -245,7 +245,7 @@ export function getLongContextLLM(config: Partial<GrokConfig> = {}) {
     model:
       process.env.OPEN_ROUTER_LONG_CONTEXT_MODEL ||
       process.env.OPEN_ROUTER_MODEL ||
-      "z-ai/glm-4.5-air:free",
+      "openrouter/owl-alpha",
     maxTokens: 32768, // 使用更大的上下文窗口
     temperature: 0.2,
   });
@@ -259,7 +259,7 @@ export function getVisionLLM(config: Partial<GrokConfig> = {}) {
     ...config,
     model:
       process.env.OPEN_ROUTER_IMAGE_MODEL ||
-      "moonshotai/kimi-vl-a3b-thinking:free", // Use image model for vision tasks
+      "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", // Use image model for vision tasks
     temperature: 0.3,
     maxTokens: 4096,
   });

@@ -120,7 +120,7 @@ export class AISummarySystem {
         meta: {
           itemCount: posts.length,
           processingTimeMs: processingTime,
-          model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free',
+          model: process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha',
           locale: opts.locale
         }
       };
@@ -197,7 +197,7 @@ export class AISummarySystem {
         meta: {
           itemCount: 1,
           processingTimeMs: processingTime,
-          model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free',
+          model: process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha',
           locale: opts.locale
         }
       };
@@ -224,7 +224,7 @@ export class AISummarySystem {
   }>> {
     const llm = await getAnalyticalLLM({
       temperature: 0.1,
-      model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+      model: process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha'
     });
 
     const mapPrompt = this.getMapPrompt(query, options.locale);
@@ -298,7 +298,7 @@ export class AISummarySystem {
   }> {
     const llm = await getLongContextLLM({
       temperature: 0.2,
-      model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+      model: process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha'
     });
 
     // Combine all key points
@@ -333,7 +333,7 @@ export class AISummarySystem {
   }> {
     const llm = await getAnalyticalLLM({
       temperature: 0.1,
-      model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+      model: process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha'
     });
 
     const singlePostPrompt = this.getSinglePostPrompt(content, options);

@@ -86,6 +86,7 @@ import BannedCourseDisplay from "./banned-course-display";
 interface CourseLearningContentProps {
   courseSlug: string;
   initialLessonId?: string;
+  initialPlaybackTime?: number;
 }
 
 // Component for handling module lessons with dedicated hook
@@ -231,6 +232,7 @@ function ModuleLessons({
 export default function CourseLearningContent({
   courseSlug,
   initialLessonId,
+  initialPlaybackTime = 0,
 }: CourseLearningContentProps) {
   // Use centralized user authentication
   const { data: userData, isLoading: userLoading } = useUser();
@@ -630,6 +632,24 @@ export default function CourseLearningContent({
     }
   }, []); // No dependencies to prevent infinite loop
 
+  const saveCurrentProgressKeepalive = React.useCallback(() => {
+    const { currentTime, duration, lessonId } = currentProgressRef.current;
+    if (!lessonId || currentTime <= 0 || duration <= 0) return;
+
+    void fetch("/api/learning-progress", {
+      method: "PUT",
+      credentials: "include",
+      keepalive: true,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lessonId,
+        videoPositionSec: Math.floor(currentTime),
+        videoDurationSec: Math.floor(duration),
+        progressPct: Math.min((currentTime / duration) * 100, 100),
+      }),
+    });
+  }, []);
+
   // Save progress when switching lessons
   useEffect(() => {
     // Save progress when lesson ID changes (but not on initial mount)
@@ -642,12 +662,12 @@ export default function CourseLearningContent({
   // Save progress on page unload/refresh
   useEffect(() => {
     const handleBeforeUnload = () => {
-      saveCurrentProgress();
+      saveCurrentProgressKeepalive();
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
-        saveCurrentProgress();
+        saveCurrentProgressKeepalive();
       }
     };
 
@@ -658,9 +678,9 @@ export default function CourseLearningContent({
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       // Final save on cleanup
-      saveCurrentProgress();
+      saveCurrentProgressKeepalive();
     };
-  }, []); // Remove saveCurrentProgress from deps to prevent infinite loop
+  }, [saveCurrentProgressKeepalive]);
 
   // Optional: Periodic backup save every 2 minutes (much less frequent)
   useEffect(() => {
@@ -1111,7 +1131,7 @@ export default function CourseLearningContent({
             poster={course?.thumbnail_url || undefined}
             transcript={currentLesson.transcript || undefined}
             onTimeUpdate={handleTimeUpdate}
-            initialTime={enhancedLessonProgress?.video_position_sec || 0}
+            initialTime={Math.max(initialPlaybackTime, enhancedLessonProgress?.video_position_sec || 0)}
           />
         ) : /* 4. Video with YouTube/external link - use BilibiliVideoPlayer */
         currentLesson?.kind === "video" && currentLesson?.content_url ? (
@@ -1122,7 +1142,7 @@ export default function CourseLearningContent({
             poster={course?.thumbnail_url || undefined}
             transcript={currentLesson.transcript || undefined}
             onTimeUpdate={handleTimeUpdate}
-            initialTime={enhancedLessonProgress?.video_position_sec || 0}
+            initialTime={Math.max(initialPlaybackTime, enhancedLessonProgress?.video_position_sec || 0)}
             videoDuration={currentLesson.duration_sec || undefined}
           />
         ) : /* Loading states */
@@ -1147,7 +1167,7 @@ export default function CourseLearningContent({
             poster={course?.thumbnail_url || undefined}
             transcript={currentLesson.transcript || undefined}
             onTimeUpdate={handleTimeUpdate}
-            initialTime={enhancedLessonProgress?.video_position_sec || 0}
+            initialTime={Math.max(initialPlaybackTime, enhancedLessonProgress?.video_position_sec || 0)}
           />
         ) : currentLesson?.kind === "video" ? (
           <BilibiliVideoPlayer
@@ -1157,7 +1177,7 @@ export default function CourseLearningContent({
             poster={course?.thumbnail_url || undefined}
             transcript={currentLesson.transcript || undefined}
             onTimeUpdate={handleTimeUpdate}
-            initialTime={enhancedLessonProgress?.video_position_sec || 0}
+            initialTime={Math.max(initialPlaybackTime, enhancedLessonProgress?.video_position_sec || 0)}
           />
         ) : (
           <div className="aspect-video bg-gradient-to-br from-gray-900 to-black flex items-center justify-center rounded-lg">

@@ -70,7 +70,7 @@ export class StudifyToolCallingAgent {
     const selectedModel =
       process.env.OPEN_ROUTER_TOOL_CALLING_MODEL ||
       process.env.OPEN_ROUTER_MODEL ||
-      "openai/gpt-4o-mini";
+      "openrouter/owl-alpha";
     console.log("🔧 Tool Calling Model Config:", {
       OPEN_ROUTER_TOOL_CALLING_MODEL:
         process.env.OPEN_ROUTER_TOOL_CALLING_MODEL,
@@ -678,7 +678,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
         console.log(`🤖 [${Date.now()}] Step 2: Starting fallback LLM answer...`);
         
         try {
-          const selectedModel = options.model || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free";
+          const selectedModel = options.model || process.env.OPEN_ROUTER_MODEL || "openrouter/owl-alpha";
           console.log(`🎯 [${Date.now()}] Using model for fallback: ${selectedModel}`);
           
           const llm = await getLLM({
@@ -830,7 +830,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
             model:
               options.model ||
               process.env.OPEN_ROUTER_MODEL ||
-              "z-ai/glm-4.5-air:free",
+              "openrouter/owl-alpha",
             temperature: 0.3,
           });
           {
@@ -907,7 +907,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
         const emergencyStartTime = Date.now();
         
         const llm = await getLLM({
-          model: "z-ai/glm-4.5-air:free", // Use fastest free model
+          model: "openrouter/owl-alpha", // Use fastest free model
           temperature: 0.3,
         });
         
@@ -1128,7 +1128,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
       
       // Use reasoning model for thinking mode
       const isThinkingMode = options.aiMode === 'thinking';
-      const modelName = options.model || process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free";
+      const modelName = options.model || process.env.OPEN_ROUTER_MODEL || "openrouter/owl-alpha";
       console.log(`🤖 [${Date.now()}] Creating LLM instance with model: ${modelName}${isThinkingMode ? ' (thinking mode)' : ''}`);
       
       const llm = await getLLM({
@@ -1388,8 +1388,8 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
     const selectedModel = options.model || (
       isImageAnalysis
         ? process.env.OPEN_ROUTER_IMAGE_MODEL ||
-          "moonshotai/kimi-vl-a3b-thinking:free"
-        : process.env.OPEN_ROUTER_MODEL || "z-ai/glm-4.5-air:free"
+          "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+        : process.env.OPEN_ROUTER_MODEL || "openrouter/owl-alpha"
     );
 
     const config: ToolCallingConfig = {

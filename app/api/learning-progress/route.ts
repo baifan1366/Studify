@@ -275,7 +275,7 @@ export async function POST(request: NextRequest) {
     
     // Determine the state based on progress
     let calculatedState = state;
-    if (!calculatedState) {
+    if (!calculatedState && progressPct !== undefined) {
       if (progressPct === 0) {
         calculatedState = 'not_started';
       } else if (progressPct >= 95) {
@@ -288,16 +288,25 @@ export async function POST(request: NextRequest) {
     // Use lesson duration if video duration not provided
     const finalVideoDurationSec = videoDurationSec || lesson.duration_sec || 0;
     
-    // Prepare the update data (include both timestamp fields for compatibility)
+    const { data: existingProgress } = await supabase
+      .from('course_progress')
+      .select('video_position_sec, video_duration_sec, time_spent_sec, progress_pct, state, completion_date')
+      .eq('user_id', userId)
+      .eq('lesson_id', lesson.id)
+      .eq('is_deleted', false)
+      .maybeSingle();
+
+    // Partial progress events (for example "started") must not erase a more
+    // recent playback position written by the video tracker.
     const now = new Date().toISOString();
     const updateData = {
       user_id: userId,
       lesson_id: lesson.id,
-      progress_pct: progressPct ?? 0,
-      video_position_sec: videoPositionSec ?? 0,
-      video_duration_sec: finalVideoDurationSec,
-      time_spent_sec: timeSpentSec ?? 0,
-      state: calculatedState,
+      progress_pct: progressPct ?? existingProgress?.progress_pct ?? 0,
+      video_position_sec: videoPositionSec ?? existingProgress?.video_position_sec ?? 0,
+      video_duration_sec: videoDurationSec ?? existingProgress?.video_duration_sec ?? lesson.duration_sec ?? 0,
+      time_spent_sec: timeSpentSec ?? existingProgress?.time_spent_sec ?? 0,
+      state: calculatedState ?? existingProgress?.state ?? 'not_started',
       lesson_kind: lessonKind,
       last_accessed_at: now,
       last_seen_at: now,
@@ -306,8 +315,8 @@ export async function POST(request: NextRequest) {
     };
     
     // Set completion date if completed
-    if (calculatedState === 'completed') {
-      (updateData as any).completion_date = new Date().toISOString();
+    if (updateData.state === 'completed') {
+      (updateData as any).completion_date = existingProgress?.completion_date || new Date().toISOString();
     }
     
     // Upsert the progress record
@@ -338,8 +347,8 @@ export async function POST(request: NextRequest) {
         last_position_sec: videoPositionSec,
         session_start_time: new Date().toISOString(),
         session_end_time: new Date().toISOString(),
-        is_completed: calculatedState === 'completed',
-        completed_at: calculatedState === 'completed' ? new Date().toISOString() : null,
+        is_completed: updateData.state === 'completed',
+        completed_at: updateData.state === 'completed' ? new Date().toISOString() : null,
         updated_at: new Date().toISOString()
       };
       
@@ -421,8 +430,8 @@ export async function PUT(request: NextRequest) {
     const updateData = {
       user_id: userId,
       lesson_id: lesson.id,
-      video_position_sec: videoPositionSec,
-      video_duration_sec: finalVideoDurationSec,
+      video_position_sec: Math.max(0, Math.floor(Number(videoPositionSec))),
+      video_duration_sec: Math.max(0, Math.floor(Number(finalVideoDurationSec))),
       progress_pct: calculatedProgressPct,
       state: calculatedProgressPct >= 95 ? 'completed' : calculatedProgressPct > 0 ? 'in_progress' : 'not_started',
       lesson_kind: 'video',

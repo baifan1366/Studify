@@ -160,7 +160,7 @@ async function generateFlashcardsFromNotes(notes: any[], cardsPerNote: number) {
     const agent = new StudifyToolCallingAgent({
       enabledTools: [],
       temperature: 0.7,
-      model: process.env.OPEN_ROUTER_MODEL || 'z-ai/glm-4.5-air:free'
+      model: process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha'
     });
 
     await agent.initialize();

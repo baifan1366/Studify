@@ -1,179 +1,106 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authorize } from '@/utils/auth/server-guard';
 import { createAdminClient } from '@/utils/supabase/server';
+import {
+  calculateStudyStreak,
+  intervalMinutes,
+  mergeStudyIntervals,
+} from '@/lib/learning/study-metrics';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
-    const authResult = await authorize(['student', 'tutor', 'admin']);
-    if ('status' in authResult) {
-      return authResult;
-    }
+    const auth = await authorize(['student', 'tutor', 'admin']);
+    if (auth instanceof NextResponse) return auth;
 
-    // 获取用户的profile ID
     const supabase = await createAdminClient();
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile } = await supabase
       .from('profiles')
-      .select('id')
-      .eq('user_id', authResult.payload.sub)
+      .select('id, timezone')
+      .eq('user_id', auth.payload.sub)
       .single();
+    if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
 
-    if (profileError || !profile) {
-      console.error('Profile lookup error:', profileError);
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-    }
-
-    const userId = profile.id;
-
-    // 获取时间范围
     const now = new Date();
-    const thisWeekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
-    const lastWeekStart = new Date(thisWeekStart.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const timeZone = profile.timezone || 'Asia/Kuala_Lumpur';
+    const thisWeekStart = new Date(now);
+    thisWeekStart.setUTCHours(0, 0, 0, 0);
+    thisWeekStart.setUTCDate(thisWeekStart.getUTCDate() - thisWeekStart.getUTCDay());
+    const lastWeekStart = new Date(thisWeekStart.getTime() - 7 * 86_400_000);
 
-    // 获取课程进度数据
-    const { data: courseProgress } = await supabase
-      .from('course_progress')
-      .select('completion_percentage, time_spent_sec, updated_at, created_at')
-      .eq('user_id', userId);
+    const [{ data: sessions }, { data: enrollments }, { data: points }, { data: progress }] =
+      await Promise.all([
+        supabase
+          .from('study_session')
+          .select('session_start, session_end, duration_minutes, activity_type')
+          .eq('user_id', profile.id)
+          .eq('is_deleted', false)
+          .gte('session_start', lastWeekStart.toISOString()),
+        supabase
+          .from('course_enrollment')
+          .select('completed_at')
+          .eq('user_id', profile.id)
+          .eq('status', 'completed')
+          .not('completed_at', 'is', null)
+          .gte('completed_at', lastWeekStart.toISOString()),
+        supabase
+          .from('community_points_ledger')
+          .select('points, created_at')
+          .eq('user_id', profile.id)
+          .eq('is_deleted', false)
+          .gte('created_at', lastWeekStart.toISOString()),
+        supabase
+          .from('course_progress')
+          .select('updated_at')
+          .eq('user_id', profile.id)
+          .eq('is_deleted', false)
+          .gte('updated_at', new Date(now.getTime() - 370 * 86_400_000).toISOString()),
+      ]);
 
-    // 获取学习统计数据
-    const { data: studyStats } = await supabase
-      .from('course_lesson_progress')
-      .select('completed_at, time_spent_sec, created_at')
-      .eq('user_id', userId)
-      .not('completed_at', 'is', null);
-
-    // 获取积分历史
-    const { data: pointsHistory } = await supabase
-      .from('community_points_ledger')
-      .select('points, created_at, reason')
-      .eq('user_id', userId)
-      .eq('is_deleted', false)
-      .order('created_at', { ascending: false })
-      .limit(100);
-
-    // 计算本周vs上周的趋势
-    const thisWeekProgress = courseProgress?.filter(p => 
-      new Date(p.updated_at) >= thisWeekStart
-    ) || [];
-
-    const lastWeekProgress = courseProgress?.filter(p => {
-      const date = new Date(p.updated_at);
-      return date >= lastWeekStart && date < thisWeekStart;
-    }) || [];
-
-    // 计算课程完成趋势
-    const thisWeekCompleted = thisWeekProgress.filter(p => p.completion_percentage >= 100).length;
-    const lastWeekCompleted = lastWeekProgress.filter(p => p.completion_percentage >= 100).length;
-    const courseCompletionTrend = thisWeekCompleted - lastWeekCompleted;
-
-    // 计算学习时间趋势
-    const thisWeekStudyTime = thisWeekProgress.reduce((total, p) => total + (p.time_spent_sec || 0), 0);
-    const lastWeekStudyTime = lastWeekProgress.reduce((total, p) => total + (p.time_spent_sec || 0), 0);
-    const studyTimeTrend = (thisWeekStudyTime - lastWeekStudyTime) / 3600; // 转换为小时
-
-    // 计算积分趋势
-    const thisWeekPoints = pointsHistory?.filter(p => 
-      new Date(p.created_at) >= thisWeekStart
-    ).reduce((sum, p) => sum + p.points, 0) || 0;
-
-    const lastWeekPoints = pointsHistory?.filter(p => {
-      const date = new Date(p.created_at);
-      return date >= lastWeekStart && date < thisWeekStart;
-    }).reduce((sum, p) => sum + p.points, 0) || 0;
-
-    const pointsTrend = thisWeekPoints - lastWeekPoints;
-
-    // 计算连续学习天数趋势
-    const recentActivity = studyStats?.filter(s => 
-      new Date(s.completed_at!) >= new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
-    ) || [];
-
-    const thisWeekActiveDays = new Set(
-      recentActivity
-        .filter(s => new Date(s.completed_at!) >= thisWeekStart)
-        .map(s => new Date(s.completed_at!).toDateString())
-    ).size;
-
-    const lastWeekActiveDays = new Set(
-      recentActivity
-        .filter(s => {
-          const date = new Date(s.completed_at!);
-          return date >= lastWeekStart && date < thisWeekStart;
-        })
-        .map(s => new Date(s.completed_at!).toDateString())
-    ).size;
-
-    // 计算当前连续天数
-    const currentStreak = calculateCurrentStreak(recentActivity.map(s => s.completed_at!));
-    const streakTrend = thisWeekActiveDays > 0;
-
-    // 构建趋势数据
-    const trends = {
-      courseCompletion: {
-        thisWeek: thisWeekCompleted,
-        change: courseCompletionTrend,
-        trend: courseCompletionTrend > 0 ? `+${courseCompletionTrend} this week` : 
-               courseCompletionTrend < 0 ? `${courseCompletionTrend} this week` :
-               'No change this week'
-      },
-      studyTime: {
-        thisWeek: thisWeekStudyTime / 3600,
-        change: studyTimeTrend,
-        trend: studyTimeTrend > 0 ? `+${studyTimeTrend.toFixed(1)}h this week` : 
-               studyTimeTrend < 0 ? `${studyTimeTrend.toFixed(1)}h this week` :
-               'Same as last week'
-      },
-      points: {
-        thisWeek: thisWeekPoints,
-        change: pointsTrend,
-        trend: pointsTrend > 0 ? `+${pointsTrend} this week` : 
-               pointsTrend < 0 ? `${pointsTrend} this week` :
-               'No change this week'
-      },
-      streak: {
-        current: currentStreak,
-        trend: streakTrend ? '🔥 Keep going!' : 'Start today!'
-      }
-    };
+    const thisWeekMinutes = intervalMinutes(mergeStudyIntervals(sessions || [], thisWeekStart, now));
+    const lastWeekMinutes = intervalMinutes(mergeStudyIntervals(sessions || [], lastWeekStart, thisWeekStart));
+    const thisWeekCompleted = (enrollments || []).filter((item) => new Date(item.completed_at!) >= thisWeekStart).length;
+    const lastWeekCompleted = (enrollments || []).length - thisWeekCompleted;
+    const thisWeekPoints = (points || []).filter((item) => new Date(item.created_at) >= thisWeekStart)
+      .reduce((sum, item) => sum + item.points, 0);
+    const lastWeekPoints = (points || []).filter((item) => new Date(item.created_at) < thisWeekStart)
+      .reduce((sum, item) => sum + item.points, 0);
+    const studyHourChange = (thisWeekMinutes - lastWeekMinutes) / 60;
+    const pointChange = thisWeekPoints - lastWeekPoints;
+    const completionChange = thisWeekCompleted - lastWeekCompleted;
+    const currentStreak = calculateStudyStreak([
+      ...(sessions || []).map((session) => session.session_start),
+      ...(progress || []).map((item) => item.updated_at),
+    ], timeZone);
 
     return NextResponse.json({
       success: true,
-      data: trends
+      data: {
+        courseCompletion: {
+          thisWeek: thisWeekCompleted,
+          change: completionChange,
+          trend: completionChange > 0 ? `+${completionChange} this week` :
+            completionChange < 0 ? `${completionChange} this week` : 'No change this week',
+        },
+        studyTime: {
+          thisWeek: thisWeekMinutes / 60,
+          change: studyHourChange,
+          trend: studyHourChange > 0 ? `+${studyHourChange.toFixed(1)}h this week` :
+            studyHourChange < 0 ? `${studyHourChange.toFixed(1)}h this week` : 'Same as last week',
+        },
+        points: {
+          thisWeek: thisWeekPoints,
+          change: pointChange,
+          trend: pointChange > 0 ? `+${pointChange} this week` :
+            pointChange < 0 ? `${pointChange} this week` : 'No change this week',
+        },
+        streak: {
+          current: currentStreak,
+          trend: currentStreak > 0 ? 'Keep going!' : 'Start today!',
+        },
+      },
     });
-
   } catch (error) {
     console.error('Error fetching dashboard trends:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
-
-// Helper function to calculate current streak
-function calculateCurrentStreak(completedDates: string[]): number {
-  if (completedDates.length === 0) return 0;
-
-  // Get unique dates and sort them
-  const uniqueDates = [...new Set(completedDates.map(d => new Date(d).toDateString()))]
-    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-
-  let streak = 0;
-  let currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0);
-
-  for (const dateStr of uniqueDates) {
-    const date = new Date(dateStr);
-    const diffDays = Math.floor((currentDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === streak) {
-      streak++;
-    } else if (diffDays > streak) {
-      break;
-    }
-  }
-
-  return streak;
 }

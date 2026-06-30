@@ -40,15 +40,43 @@ export async function POST(request: NextRequest) {
       durationMinutes,
       activityType = 'video_watching',
       engagementScore,
-      progressMade
+      progressMade,
+      idempotencyKey,
     } = body;
 
     // Validation
-    if (!durationMinutes || durationMinutes <= 0) {
+    const startTime = new Date(sessionStart).getTime();
+    const endIso = sessionEnd || new Date().toISOString();
+    const endTime = new Date(endIso).getTime();
+    const actualDurationMinutes = Math.round((endTime - startTime) / 60_000);
+
+    if (
+      !Number.isFinite(startTime) ||
+      !Number.isFinite(endTime) ||
+      actualDurationMinutes <= 0 ||
+      actualDurationMinutes > 720
+    ) {
       return NextResponse.json(
         { error: 'Invalid duration' },
         { status: 400 }
       );
+    }
+
+    if (idempotencyKey) {
+      const { data: existingSession } = await supabase
+        .from('study_session')
+        .select('public_id, duration_minutes')
+        .eq('user_id', userId)
+        .eq('idempotency_key', String(idempotencyKey).slice(0, 200))
+        .eq('is_deleted', false)
+        .maybeSingle();
+      if (existingSession) {
+        return NextResponse.json({
+          success: true,
+          duplicate: true,
+          data: { session: { id: existingSession.public_id, duration: existingSession.duration_minutes, pointsEarned: 0 } },
+        });
+      }
     }
 
     if (!sessionStart) {
@@ -90,17 +118,21 @@ export async function POST(request: NextRequest) {
         lesson_id: lessonInternalId,
         course_id: courseInternalId,
         session_start: sessionStart,
-        session_end: sessionEnd || new Date().toISOString(),
-        duration_minutes: Math.round(durationMinutes),
+        session_end: endIso,
+        duration_minutes: actualDurationMinutes,
         activity_type: activityType,
         engagement_score: engagementScore,
         progress_made: progressMade,
+        idempotency_key: idempotencyKey ? String(idempotencyKey).slice(0, 200) : null,
         is_deleted: false
       })
       .select()
       .single();
 
     if (sessionError) {
+      if (sessionError.code === '23505' && idempotencyKey) {
+        return NextResponse.json({ success: true, duplicate: true, data: { pointsEarned: 0 } });
+      }
       console.error('Error creating study session:', sessionError);
       return NextResponse.json(
         { error: 'Failed to create study session', details: sessionError.message },
@@ -109,33 +141,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Award points for study time (1 point per 10 minutes)
-    const pointsToAward = Math.floor(durationMinutes / 10);
+    const pointsToAward = Math.floor(actualDurationMinutes / 10);
     if (pointsToAward > 0) {
-      // Get current points
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('points')
-        .eq('id', userId)
-        .maybeSingle();
-      
-      const currentPoints = profileData?.points || 0;
-      
-      // Add points to profile
-      await supabase
-        .from('profiles')
-        .update({ 
-          points: currentPoints + pointsToAward
-        })
-        .eq('id', userId);
-
-      // Record in points ledger
+      // The points ledger is the source of truth; its trigger synchronizes the profile balance.
       await supabase
         .from('community_points_ledger')
         .insert({
           user_id: userId,
           points: pointsToAward,
           reason: `Study session: ${activityType.replace('_', ' ')}`,
-          ref: { session_id: session.id, duration_minutes: durationMinutes },
+          ref: { session_id: session.id, duration_minutes: actualDurationMinutes },
           is_deleted: false
         });
     }
@@ -145,7 +160,7 @@ export async function POST(request: NextRequest) {
       data: {
         session: {
           id: session.public_id,
-          duration: durationMinutes,
+          duration: actualDurationMinutes,
           activityType,
           pointsEarned: pointsToAward
         }

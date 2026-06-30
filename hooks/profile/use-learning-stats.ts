@@ -181,6 +181,7 @@ export function useCreateStudySession() {
       activityType: "video_watching" | "quiz_taking" | "reading" | "practice";
       engagementScore?: number;
       progressMade?: number;
+      idempotencyKey?: string;
     }
   >({
     mutationFn: (sessionData) =>

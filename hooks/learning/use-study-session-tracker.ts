@@ -28,6 +28,7 @@ export function useStudySessionTracker({
   const currentSessionTimeRef = useRef(0); // Current session time in minutes
   const historicalTimeRef = useRef(0); // Historical time from database in minutes
   const lastSaveRef = useRef<Date | null>(null);
+  const sessionKeyRef = useRef<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // Store latest values in refs to avoid stale closures
@@ -91,6 +92,8 @@ export function useStudySessionTracker({
   const startSession = useCallback(() => {
     if (!sessionStartRef.current) {
       sessionStartRef.current = new Date();
+      lastSaveRef.current = null;
+      sessionKeyRef.current = crypto.randomUUID();
       console.log("📚 Study session started:", activityTypeRef.current);
     }
   }, []);
@@ -100,19 +103,21 @@ export function useStudySessionTracker({
     if (!sessionStartRef.current) return;
 
     const sessionEnd = new Date();
+    const segmentStart = lastSaveRef.current || sessionStartRef.current;
     const durationMinutes =
-      (sessionEnd.getTime() - sessionStartRef.current.getTime()) / 1000 / 60;
+      (sessionEnd.getTime() - segmentStart.getTime()) / 1000 / 60;
 
     // Only save if duration meets minimum threshold
-    if (durationMinutes >= minDurationRef.current) {
+    if (durationMinutes >= (lastSaveRef.current ? 0.5 : minDurationRef.current)) {
       try {
         await createSession.mutateAsync({
           lessonId: lessonIdRef.current || undefined,
           courseId: courseIdRef.current || undefined,
-          sessionStart: sessionStartRef.current.toISOString(),
+          sessionStart: segmentStart.toISOString(),
           sessionEnd: sessionEnd.toISOString(),
           durationMinutes: Math.round(durationMinutes),
           activityType: activityTypeRef.current,
+          idempotencyKey: `${sessionKeyRef.current}:${segmentStart.toISOString()}`,
         });
 
         console.log(
@@ -138,9 +143,11 @@ export function useStudySessionTracker({
 
     // Reset session
     sessionStartRef.current = null;
+    lastSaveRef.current = null;
+    sessionKeyRef.current = null;
   }, [createSession]);
 
-  // Periodic save (every 5 minutes)
+  // Periodic save in 10-minute segments so time-based rewards remain additive.
   const saveProgress = useCallback(async () => {
     if (!sessionStartRef.current) return;
 
@@ -166,6 +173,7 @@ export function useStudySessionTracker({
           sessionEnd: now.toISOString(),
           durationMinutes: Math.round(durationToSave),
           activityType: activityTypeRef.current,
+          idempotencyKey: `${sessionKeyRef.current}:${(lastSaveRef.current || sessionStartRef.current).toISOString()}`,
         });
 
         console.log(`💾 Progress saved: ${Math.round(durationToSave)} minutes`);
@@ -183,10 +191,10 @@ export function useStudySessionTracker({
     if (autoStart && lessonId) {
       startSession();
 
-      // Set up periodic saves every 5 minutes
+      // Set up periodic saves every 10 minutes
       intervalRef.current = setInterval(() => {
         saveProgress();
-      }, 5 * 60 * 1000); // 5 minutes
+      }, 10 * 60 * 1000);
     }
 
     // Cleanup: save on unmount or lesson change

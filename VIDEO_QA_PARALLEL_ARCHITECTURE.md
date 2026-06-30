@@ -135,7 +135,7 @@ const searchPromise = (async () => {
 
 const fallbackPromise = (async () => {
   // 直接LLM调用，90s超时
-  const llm = await getLLM({ model: "z-ai/glm-4.5-air:free" });
+  const llm = await getLLM({ model: "openrouter/owl-alpha" });
   return await llm.invoke(fallbackPrompt);
 })();
 ```
@@ -171,7 +171,7 @@ try {
   // 主要逻辑
 } catch (error) {
   // 最后手段: 简单直接答案
-  const llm = await getLLM({ model: "z-ai/glm-4.5-air:free" });
+  const llm = await getLLM({ model: "openrouter/owl-alpha" });
   const emergencyAnswer = await llm.invoke(`Answer briefly: ${question}`);
   return { answer: emergencyAnswer.content, confidence: 0.6 };
 }

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/server';
 import { authorize } from '@/utils/auth/server-guard';
+import {
+  buildDailyStudyMinutes,
+  calculateStudyStreak,
+  intervalMinutes,
+  mergeStudyIntervals,
+} from '@/lib/learning/study-metrics';
 
 // GET /api/profile/learning-stats - 获取用户学习统计数据
 export async function GET(request: NextRequest) {
@@ -18,7 +24,7 @@ export async function GET(request: NextRequest) {
     // 获取用户的profile ID
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, timezone')
       .eq('user_id', payload.sub)
       .single();
 
@@ -28,6 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = profile.id;
+    const timeZone = profile.timezone || 'Asia/Kuala_Lumpur';
 
     // 计算日期范围
     let startDate: string;
@@ -49,7 +56,7 @@ export async function GET(request: NextRequest) {
     try {
       const { data, error } = await supabase
         .from('study_session')
-        .select('duration_minutes, session_start, activity_type')
+        .select('duration_minutes, session_start, session_end, activity_type')
         .eq('user_id', userId)
         .eq('is_deleted', false)
         .gte('session_start', startDate);
@@ -66,15 +73,21 @@ export async function GET(request: NextRequest) {
     }
 
     // 计算总学习时长
-    const totalStudyMinutes = studyTimeData?.reduce((sum: number, session: any) => sum + (session.duration_minutes || 0), 0) || 0;
+    const totalStudyMinutes = intervalMinutes(
+      mergeStudyIntervals(studyTimeData, new Date(startDate), now)
+    );
     const totalStudyHours = Math.round((totalStudyMinutes / 60) * 10) / 10;
 
     // 按活动类型分组
-    const activityBreakdown = studyTimeData?.reduce((acc: any, session: any) => {
-      const type = session.activity_type || 'other';
-      acc[type] = (acc[type] || 0) + (session.duration_minutes || 0);
-      return acc;
-    }, {} as Record<string, number>) || {};
+    const activityTypes = [...new Set(studyTimeData.map((session: any) => session.activity_type || 'other'))];
+    const activityBreakdown = Object.fromEntries(activityTypes.map((type) => [
+      type,
+      intervalMinutes(mergeStudyIntervals(
+        studyTimeData.filter((session: any) => (session.activity_type || 'other') === type),
+        new Date(startDate),
+        now
+      )),
+    ]));
 
     // 获取课程完成统计 (使用fallback查询)
     let completedCourses: any[] = [];
@@ -90,8 +103,7 @@ export async function GET(request: NextRequest) {
             total_lessons
           )
         `)
-        .eq('user_id', userId)
-        .gte('completed_at', startDate);
+        .eq('user_id', userId);
 
       if (courseError) {
         console.warn('Course enrollment query failed:', courseError);
@@ -110,7 +122,7 @@ export async function GET(request: NextRequest) {
     try {
       const { data, error } = await supabase
         .from('course_progress')
-        .select('progress_pct, state, time_spent_sec')
+        .select('progress_pct, state, time_spent_sec, updated_at')
         .eq('user_id', userId)
         .eq('is_deleted', false);
 
@@ -142,7 +154,7 @@ export async function GET(request: NextRequest) {
         .eq('user_id', userId)
         .eq('is_deleted', false)
         .order('session_start', { ascending: false })
-        .limit(30);
+        .gte('session_start', new Date(now.getTime() - 370 * 24 * 60 * 60 * 1000).toISOString());
 
       if (error) {
         console.warn('Study session streak query failed:', error);
@@ -154,45 +166,10 @@ export async function GET(request: NextRequest) {
       recentSessions = [];
     }
 
-    let studyStreak = 0;
-    if (recentSessions && recentSessions.length > 0) {
-      // Get unique dates and sort them (most recent first)
-      const sessionDates = recentSessions.map((s: any) => new Date(s.session_start).toISOString().split('T')[0]);
-      const uniqueDates = [...new Set(sessionDates)].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-      
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayStr = today.toISOString().split('T')[0];
-      
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-      // Check if user studied today or yesterday (streak is still active)
-      if (uniqueDates[0] === todayStr || uniqueDates[0] === yesterdayStr) {
-        // Start from the most recent study date
-        let currentCheckDate = new Date(uniqueDates[0] + 'T00:00:00');
-        currentCheckDate.setHours(0, 0, 0, 0);
-        
-        // Count consecutive days
-        for (const dateStr of uniqueDates) {
-          const sessionDate = new Date(dateStr + 'T00:00:00');
-          sessionDate.setHours(0, 0, 0, 0);
-          
-          const diffDays = Math.floor((currentCheckDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
-          
-          if (diffDays === 0) {
-            // This day matches our expected date
-            studyStreak++;
-            // Move to previous day for next iteration
-            currentCheckDate.setDate(currentCheckDate.getDate() - 1);
-          } else if (diffDays > 0) {
-            // Gap found, streak ends
-            break;
-          }
-        }
-      }
-    }
+    const studyStreak = calculateStudyStreak([
+      ...recentSessions.map((session: any) => session.session_start),
+      ...progressData.map((progress: any) => progress.updated_at).filter(Boolean),
+    ], timeZone);
 
     // 获取积分统计 (使用fallback)
     let pointsEarned = 0;
@@ -269,21 +246,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 每日学习时长趋势（最近7天）
-    const dailyStats = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toDateString();
-      
-      const dayMinutes = studyTimeData?.filter((session: any) => 
-        new Date(session.session_start).toDateString() === dateStr
-      ).reduce((sum: number, session: any) => sum + (session.duration_minutes || 0), 0) || 0;
-
-      return {
-        date: date.toISOString().split('T')[0],
-        minutes: dayMinutes,
-        hours: Math.round((dayMinutes / 60) * 10) / 10
-      };
-    }).reverse();
+    const dailyStats = buildDailyStudyMinutes(studyTimeData, timeZone, 7);
 
     return NextResponse.json({
       success: true,

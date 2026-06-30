@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   try {
     const input = schema.parse(await request.json());
     const llm = await getLLM({
-      model: process.env.OPENROUTER_MODEL_FAST || "openai/gpt-4o-mini",
+      model: process.env.OPENROUTER_MODEL_FAST || "openrouter/owl-alpha",
       temperature: 0,
     });
     const numbered = input.segments.map((segment, index) => `${index}\t${segment.text}`).join("\n");

@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import {
+  calculateStudyStreak,
+  intervalMinutes,
+  mergeStudyIntervals,
+} from '@/lib/learning/study-metrics';
 
 export async function GET(request: NextRequest) {
   try {
@@ -87,7 +92,7 @@ export async function GET(request: NextRequest) {
     // Get study sessions for accurate study time calculation
     const { data: studySessions } = await supabase
       .from('study_session')
-      .select('duration_minutes, session_start')
+      .select('duration_minutes, session_start, session_end, activity_type')
       .eq('user_id', profile.id)
       .eq('is_deleted', false)
       .gte('session_start', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
@@ -101,7 +106,7 @@ export async function GET(request: NextRequest) {
     const coursesCompleted = enrollments?.filter(e => e.status === 'completed' && e.completed_at).length || 0;
     
     // Calculate total study time from study sessions (more accurate than course_progress)
-    const totalStudyMinutes = studySessions?.reduce((total, s) => total + (s.duration_minutes || 0), 0) || 0;
+    const totalStudyMinutes = intervalMinutes(mergeStudyIntervals(studySessions || []));
     const totalStudyTime = Math.round((totalStudyMinutes / 60) * 10) / 10; // Convert to hours with 1 decimal
 
     // Get recent courses (last 3 accessed) - for continue watching
@@ -167,9 +172,10 @@ export async function GET(request: NextRequest) {
      .slice(0, 5);
 
     // Calculate current streak from study sessions
-    const currentStreak = studySessions && studySessions.length > 0 
-      ? calculateStreak(studySessions.map(s => s.session_start))
-      : 0;
+    const currentStreak = calculateStudyStreak(
+      (studySessions || []).map((session) => session.session_start),
+      profile.timezone || 'Asia/Kuala_Lumpur'
+    );
 
     const dashboardData = {
       stats: {
@@ -224,46 +230,3 @@ function formatTimeAgo(dateString: string): string {
   return date.toLocaleDateString();
 }
 
-function calculateStreak(dates: string[]): number {
-  if (dates.length === 0) return 0;
-
-  // Get unique dates and sort them (most recent first)
-  const uniqueDates = [...new Set(dates.map(d => new Date(d).toISOString().split('T')[0]))];
-  uniqueDates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().split('T')[0];
-  
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-  // Check if user studied today or yesterday (streak is still active)
-  if (uniqueDates[0] !== todayStr && uniqueDates[0] !== yesterdayStr) {
-    return 0; // Streak is broken
-  }
-
-  let streak = 0;
-  let expectedDate = new Date(today);
-  
-  // Count consecutive days
-  for (const dateStr of uniqueDates) {
-    const sessionDate = new Date(dateStr + 'T00:00:00');
-    sessionDate.setHours(0, 0, 0, 0);
-    expectedDate.setHours(0, 0, 0, 0);
-    
-    const diffDays = Math.floor((expectedDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) {
-      // This day matches our expected date
-      streak++;
-      expectedDate.setDate(expectedDate.getDate() - 1); // Move to previous day
-    } else if (diffDays > 0) {
-      // Gap found, streak ends
-      break;
-    }
-  }
-
-  return streak;
-}

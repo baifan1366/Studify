@@ -8,6 +8,7 @@ interface CourseLearningPageProps {
   }>;
   searchParams: Promise<{
     lesson?: string;
+    t?: string;
   }>;
 }
 
@@ -29,11 +30,13 @@ export async function generateMetadata({ params }: CourseLearningPageProps): Pro
 
 export default async function CourseLearningPage({ params, searchParams }: CourseLearningPageProps) {
   const { slug } = await params;
-  const { lesson } = await searchParams;
+  const { lesson, t } = await searchParams;
+  const resumeAtSec = Number.isFinite(Number(t)) ? Math.max(0, Number(t)) : 0;
   return (
     <CourseLearningContent 
       courseSlug={slug} 
       initialLessonId={lesson}
+      initialPlaybackTime={resumeAtSec}
     />
   );
 }

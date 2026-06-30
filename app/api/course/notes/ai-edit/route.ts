@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     const llm = await getLLM({
-      model: process.env.OPENROUTER_MODEL_FAST || "openai/gpt-4o-mini",
+      model: process.env.OPENROUTER_MODEL_FAST || "openrouter/owl-alpha",
       temperature: 0.2,
     });
     const result = await llm.invoke([

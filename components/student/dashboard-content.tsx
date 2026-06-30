@@ -16,7 +16,6 @@ import {
   Zap,
   Trophy,
   Route,
-  FileText,
   Maximize2,
   X,
   Flame,
@@ -44,7 +43,6 @@ import {
   useContinueWatching,
   useContinueWatchingActions,
 } from "@/hooks/learning/use-learning-progress";
-import { useAINotes } from "@/hooks/dashboard/use-ai-notes";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
@@ -60,8 +58,6 @@ import { Button } from "@/components/ui/button";
 import UniversalSearch from "@/components/search/universal-search";
 import DailyCoachCard from "@/components/ai-coach/daily-coach-card";
 import EveningReflectionModal from "@/components/ai-coach/evening-reflection-modal";
-import { MarkdownNoteEditor } from "@/components/course/markdown-note-editor";
-import { useUpdateNote } from "@/hooks/course/use-course-notes";
 import { VideoLearningArtifacts } from "@/components/video/video-learning-artifacts";
 
 /* ─── tiny helpers ─────────────────────────────────────── */
@@ -152,15 +148,11 @@ export default function DashboardContent() {
   const { generateContinueWatchingUrl, formatProgress, formatTimeRemaining, formatLastAccessed } = useContinueWatchingActions();
   const { data: userPreferences, isLoading: preferencesLoading } = useUserPreferences();
   const { data: trendsData, isLoading: trendsLoading } = useDashboardTrends();
-  const { data: aiNotes, isLoading: aiNotesLoading } = useAINotes({ limit: 5 });
-  const updateNote = useUpdateNote();
 
   // Modal states
   const [showReflectionModal, setShowReflectionModal] = React.useState(false);
   const [selectedLearningPath, setSelectedLearningPath] = React.useState<any>(null);
   const [showLearningPathModal, setShowLearningPathModal] = React.useState(false);
-  const [selectedAINote, setSelectedAINote] = React.useState<any>(null);
-  const [showAINoteModal, setShowAINoteModal] = React.useState(false);
 
   const user = userData;
   const profile = user?.profile;
@@ -303,8 +295,8 @@ export default function DashboardContent() {
                 <Sparkles className="h-4 w-4 text-violet-400" />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-foreground">Video study studio</h2>
-                <p className="text-xs text-muted-foreground">Open and edit your generated notes, mind maps, and quizzes.</p>
+                <h2 className="text-base font-semibold text-foreground">Study library</h2>
+                <p className="text-xs text-muted-foreground">All your notes, mind maps, and personal practice quizzes in one place.</p>
               </div>
             </div>
             <VideoLearningArtifacts library />
@@ -533,53 +525,6 @@ export default function DashboardContent() {
               </GlassCard>
             )}
 
-            {/* AI Notes */}
-            {aiNotes && aiNotes.length > 0 && (
-              <GlassCard gradient="from-violet-500/12 via-fuchsia-500/8 to-purple-500/5" glowColor="rgba(139,92,246,0.2)">
-                <h3 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-violet-500/15 border border-violet-500/20">
-                    <FileText size={14} className="text-violet-400" />
-                  </div>
-                  {t("my_ai_notes")}
-                </h3>
-
-                <div className="space-y-2.5">
-                  {aiNotes.slice(0, 4).map((note) => (
-                    <div
-                      key={note.id}
-                      className="p-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-violet-500/30 transition-all duration-200 cursor-pointer group"
-                      onClick={() => { setSelectedAINote(note); setShowAINoteModal(true); }}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg, #7C3AED, #C026D3)" }}>
-                          <FileText size={14} className="text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-0.5">
-                            <h4 className="font-medium text-foreground text-sm truncate">{note.title}</h4>
-                            <Maximize2 size={12} className="text-muted-foreground/40 group-hover:text-muted-foreground/80 transition-colors flex-shrink-0 ml-2" />
-                          </div>
-                          <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">{note.content}</p>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {note.tags && note.tags.slice(0, 3).map((tag, idx) => (
-                              <Badge key={idx} className="text-[10px] px-1.5 py-0.5 bg-violet-500/15 text-violet-300 border-violet-500/25">{tag}</Badge>
-                            ))}
-                            <span className="text-[10px] text-muted-foreground/40 ml-auto">
-                              {new Date(note.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {aiNotes.length > 4 && (
-                    <button className="w-full text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors py-1">
-                      {t("view_all_notes", { count: aiNotes.length })}
-                    </button>
-                  )}
-                </div>
-              </GlassCard>
-            )}
           </motion.div>
 
           {/* Right Column */}
@@ -782,72 +727,6 @@ export default function DashboardContent() {
         </DialogContent>
       </Dialog>
 
-      {/* AI Note Modal */}
-      <Dialog open={showAINoteModal} onOpenChange={setShowAINoteModal}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto border-white/15" style={{ background: "linear-gradient(135deg, rgba(13,31,26,0.98) 0%, rgba(45,27,60,0.98) 100%)", backdropFilter: "blur(20px)" }}>
-          <DialogHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-violet-500/15 border border-violet-500/20">
-                <FileText className="w-5 h-5 text-violet-400" />
-              </div>
-              <div>
-                <DialogTitle className="text-xl font-semibold text-foreground">{selectedAINote?.title}</DialogTitle>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {t("created_on")} {selectedAINote && new Date(selectedAINote.created_at).toLocaleDateString("en", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                </p>
-              </div>
-            </div>
-          </DialogHeader>
-
-          {selectedAINote && (
-            <div className="space-y-5 mt-4">
-              {selectedAINote.tags && selectedAINote.tags.length > 0 && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs text-muted-foreground">{t("tags")}</span>
-                  {selectedAINote.tags.map((tag: string, idx: number) => (
-                    <Badge key={idx} className="bg-violet-500/15 text-violet-300 border-violet-500/25">{tag}</Badge>
-                  ))}
-                </div>
-              )}
-
-              <MarkdownNoteEditor
-                noteId={selectedAINote.id}
-                initialTitle={selectedAINote.title}
-                initialContent={selectedAINote.content}
-                saving={updateNote.isPending}
-                onSave={async (value) => {
-                  const result = await updateNote.mutateAsync({ noteId: selectedAINote.id, ...value });
-                  setSelectedAINote((current: any) => current ? {
-                    ...current,
-                    title: result.note.title,
-                    content: result.note.content,
-                    updated_at: result.note.updatedAt,
-                  } : current);
-                }}
-              />
-
-              {(selectedAINote.course_id || selectedAINote.lesson_id) && (
-                <div className="p-4 rounded-xl bg-purple-500/8 border border-purple-500/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <BookOpen className="w-4 h-4 text-purple-400" />
-                    <h4 className="text-sm font-medium text-purple-300">{t("related_content")}</h4>
-                  </div>
-                  <div className="text-sm text-muted-foreground space-y-1">
-                    {selectedAINote.course_id && <p>{t("course_id")}{selectedAINote.course_id}</p>}
-                    {selectedAINote.lesson_id && <p>{t("lesson_id")}{selectedAINote.lesson_id}</p>}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
-                <Button variant="outline" className="bg-white/5 border-white/15 text-foreground hover:bg-white/10" onClick={() => setShowAINoteModal(false)}>
-                  <X className="w-4 h-4 mr-2" />{t("close")}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

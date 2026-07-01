@@ -99,6 +99,12 @@
     "view_past_reflections": "View Past Reflections",
     "no_reflection_today": "No reflection yet today",
     "reflection_completed": "Today's reflection completed",
+    "focus_plan": "Focus plan",
+    "tasks_completed_short": "tasks completed",
+    "remaining": "remaining",
+    "why_this_plan": "Why these tasks",
+    "show_less": "Show less",
+    "show_remaining_tasks": "Show {count} more tasks",
     "task_types": {
       "study": "Study",
       "review": "Review",

@@ -60,6 +60,7 @@ import UniversalSearch from "@/components/search/universal-search";
 import DailyCoachCard from "@/components/ai-coach/daily-coach-card";
 import EveningReflectionModal from "@/components/ai-coach/evening-reflection-modal";
 import { VideoLearningArtifacts } from "@/components/video/video-learning-artifacts";
+import { cn } from "@/lib/utils";
 
 /* ─── tiny helpers ─────────────────────────────────────── */
 const fadeUp = (delay = 0) => ({
@@ -73,14 +74,21 @@ const GlassCard = ({
   className = "",
   gradient = "from-white/5 to-white/[0.02]",
   glowColor = "",
+  allowOverflow = false,
 }: {
   children: React.ReactNode;
   className?: string;
   gradient?: string;
   glowColor?: string;
+  allowOverflow?: boolean;
 }) => (
   <div
-    className={`relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br ${gradient} backdrop-blur-sm p-6 ${className}`}
+    className={cn(
+      "relative rounded-2xl border border-white/10 bg-gradient-to-br backdrop-blur-sm p-6",
+      allowOverflow ? "overflow-visible" : "overflow-hidden",
+      gradient,
+      className
+    )}
   >
     {glowColor && (
       <div
@@ -275,7 +283,11 @@ export default function DashboardContent() {
 
         {/* ─── Search ──────────────────────────────────── */}
         <motion.div {...fadeUp(0.1)} className="relative z-50">
-          <GlassCard gradient="from-white/5 to-white/[0.02]" glowColor="rgba(59,130,246,0.15)">
+          <GlassCard
+            gradient="from-white/5 to-white/[0.02]"
+            glowColor="rgba(59,130,246,0.15)"
+            allowOverflow
+          >
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 rounded-lg bg-blue-500/15 border border-blue-500/20">
                 <Search className="w-4 h-4 text-blue-400" />

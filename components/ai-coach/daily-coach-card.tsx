@@ -1,532 +1,279 @@
 'use client';
 
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Brain,
-  CheckCircle2,
-  Clock,
-  Target,
-  Star,
-  RefreshCw,
-  ChevronDown,
-  ChevronUp,
-  Play,
-  Plus,
-  Lightbulb,
-  Heart,
-  Route,
-  TrendingUp,
-  Award
+import React, { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  Brain, Check, CheckCircle2, ChevronDown, ChevronUp, Clock3,
+  Lightbulb, ListChecks, Plus, RefreshCw, Sparkles, Star, Target,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  useDailyPlan, 
-  useGenerateDailyPlan, 
-  useUpdateTaskStatus, 
-  usePlanStats,
-  formatDuration,
-  getTaskTypeInfo,
-  getPriorityInfo,
-  DailyLearningPlan 
+import {
+  DailyPlanTask, formatDuration, getTaskTypeInfo, useDailyPlan,
+  useGenerateDailyPlan, usePlanStats, useUpdateTaskStatus,
 } from '@/hooks/ai-coach/use-ai-coach';
-import { useLearningPathProgress } from '@/hooks/ai-coach/use-learning-path-progress';
 
 interface DailyCoachCardProps {
   className?: string;
   onReflectionClick?: () => void;
 }
 
+const priorityStyles: Record<DailyPlanTask['priority'], string> = {
+  urgent: 'border-red-400/30 bg-red-400/10 text-red-300',
+  high: 'border-orange-400/30 bg-orange-400/10 text-orange-300',
+  medium: 'border-blue-400/30 bg-blue-400/10 text-blue-300',
+  low: 'border-white/15 bg-white/5 text-white/60',
+};
+const priorityOrder: Record<DailyPlanTask['priority'], number> = {
+  urgent: 4, high: 3, medium: 2, low: 1,
+};
+
 export default function DailyCoachCard({ className, onReflectionClick }: DailyCoachCardProps) {
   const t = useTranslations('AICoach');
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [showPathProgress, setShowPathProgress] = useState(false);
-  
-  // Hooks
-  const { data: planData, isLoading, error } = useDailyPlan();
+  const [showAllTasks, setShowAllTasks] = useState(false);
+  const [showRationale, setShowRationale] = useState(false);
+  const { data: plan, isLoading } = useDailyPlan();
   const generatePlan = useGenerateDailyPlan();
   const updateTaskStatus = useUpdateTaskStatus();
-  const { data: pathProgress, isLoading: pathProgressLoading } = useLearningPathProgress();
-  
-  const plan = planData;
   const stats = usePlanStats(plan);
 
-  const handleGeneratePlan = () => {
-    // AI Coach generates personalized plan using:
-    // - User's learning paths (long-term goals and roadmaps)
-    // - Recent AI notes (insights and key learnings)
-    // - Active courses and progress
-    // - Learning statistics and patterns
-    // This ensures tasks align with learning paths and build upon saved notes
-    generatePlan.mutate();
-  };
+  const tasks = useMemo<DailyPlanTask[]>(
+    () => ([...(plan?.tasks || [])] as DailyPlanTask[]).sort(
+      (a, b) => Number(a.is_completed) - Number(b.is_completed)
+        || priorityOrder[b.priority] - priorityOrder[a.priority]
+        || a.position - b.position
+    ),
+    [plan?.tasks]
+  );
+  const visibleTasks = showAllTasks ? tasks : tasks.slice(0, 3);
+  const remainingMinutes = tasks
+    .filter((task) => !task.is_completed)
+    .reduce((total, task) => total + task.estimated_minutes, 0);
 
-  const handleTaskToggle = (taskId: string, isCompleted: boolean, estimatedMinutes: number) => {
+  const handleGeneratePlan = () => generatePlan.mutate();
+  const handleTaskToggle = (task: DailyPlanTask) => {
     updateTaskStatus.mutate({
-      taskId,
-      isCompleted,
-      actualMinutes: isCompleted ? estimatedMinutes : 0
+      taskId: task.public_id,
+      isCompleted: !task.is_completed,
+      actualMinutes: !task.is_completed ? task.estimated_minutes : 0,
     });
   };
 
-  if (isLoading) {
-    return <DailyCoachCardSkeleton className={className} />;
-  }
+  if (isLoading) return <DailyCoachCardSkeleton className={className} />;
 
   return (
-    <motion.div
+    <motion.section
       className={cn(
-        "relative bg-gradient-to-br from-indigo-600/20 via-purple-600/20 to-pink-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6",
+        'relative overflow-hidden rounded-2xl border border-white/10 bg-card/70 p-5 shadow-sm backdrop-blur-md',
         className
       )}
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
+      transition={{ duration: 0.35 }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-indigo-500/20 rounded-lg">
-            <Brain className="w-5 h-5 text-indigo-400" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-orange-400/70 to-transparent" />
+      <header className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="rounded-xl border border-orange-400/20 bg-orange-400/10 p-2.5">
+            <Brain className="h-5 w-5 text-orange-400" />
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-              {t('daily_coach')}
-              {stats.isCompleted && (
-                <CheckCircle2 className="w-4 h-4 text-green-400" />
-              )}
-            </h3>
-            <p className="text-sm text-white/60">
-              {plan ? t('today_plan') : t('plan_description')}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="truncate text-lg font-semibold text-foreground">{t('daily_coach')}</h3>
+              {stats.isCompleted && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {plan?.plan_description || t('plan_description')}
             </p>
           </div>
         </div>
-        
         {plan && (
           <Button
             variant="ghost"
-            size="sm"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-white/70 hover:text-white hover:bg-white/10"
-          >
-            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </Button>
-        )}
-      </div>
-
-      {/* No Plan State */}
-      {!plan && (
-        <div className="text-center py-6">
-          <div className="mb-4">
-            <Target className="w-12 h-12 text-white/40 mx-auto mb-2" />
-            <p className="text-white/60 text-sm mb-4">{t('no_plan_today')}</p>
-          </div>
-          
-          <Button
+            size="icon"
             onClick={handleGeneratePlan}
             disabled={generatePlan.isPending}
-            className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white border-0"
+            aria-label={t('regenerate_plan')}
+            className="shrink-0 text-muted-foreground hover:text-foreground"
           >
-            {generatePlan.isPending ? (
-              <>
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                {t('generating_plan')}
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4 mr-2" />
-                {t('generate_plan')}
-              </>
-            )}
+            <RefreshCw className={cn('h-4 w-4', generatePlan.isPending && 'animate-spin')} />
+          </Button>
+        )}
+      </header>
+
+      {!plan ? (
+        <div className="mt-5 rounded-xl border border-dashed border-white/15 bg-white/[0.025] px-5 py-8 text-center">
+          <Target className="mx-auto mb-3 h-9 w-9 text-orange-400/70" />
+          <p className="mb-4 text-sm text-muted-foreground">{t('no_plan_today')}</p>
+          <Button onClick={handleGeneratePlan} disabled={generatePlan.isPending}>
+            {generatePlan.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+            {generatePlan.isPending ? t('generating_plan') : t('generate_plan')}
           </Button>
         </div>
-      )}
-
-      {/* Plan Overview */}
-      {plan && (
-        <div className="space-y-4">
-          {/* Stats Row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="text-center p-3 bg-white/5 rounded-lg">
-              <div className="text-sm text-white/60">{t('tasks_completed')}</div>
-              <div className="text-lg font-semibold text-white">
-                {stats.completedTasks}/{stats.totalTasks}
+      ) : (
+        <div className="mt-5 space-y-4">
+          <div className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t('focus_plan')}</p>
+                <p className="mt-1 text-sm font-medium text-foreground">
+                  {stats.completedTasks} / {stats.totalTasks} {t('tasks_completed_short')}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Clock3 className="h-3.5 w-3.5 text-blue-400" />
+                  {formatDuration(remainingMinutes)} {t('remaining')}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Star className="h-3.5 w-3.5 text-amber-400" />
+                  {stats.earnedPoints}/{stats.totalPoints} {t('pts')}
+                </span>
               </div>
             </div>
-            
-            <div className="text-center p-3 bg-white/5 rounded-lg">
-              <div className="text-sm text-white/60">{t('completion_rate')}</div>
-              <div className="text-lg font-semibold text-white">
-                {stats.completionRate}%
-              </div>
-            </div>
-            
-            <div className="text-center p-3 bg-white/5 rounded-lg">
-              <div className="text-sm text-white/60">{t('points_earned')}</div>
-              <div className="text-lg font-semibold text-white flex items-center justify-center gap-1">
-                <Star className="w-4 h-4 text-yellow-400" />
-                {stats.earnedPoints}
-              </div>
-            </div>
-            
-            <div className="text-center p-3 bg-white/5 rounded-lg">
-              <div className="text-sm text-white/60">{t('estimated_time')}</div>
-              <div className="text-lg font-semibold text-white flex items-center justify-center gap-1">
-                <Clock className="w-4 h-4 text-blue-400" />
-                {formatDuration(stats.estimatedTime)}
-              </div>
+            <div className="mt-3 flex items-center gap-3">
+              <Progress value={stats.completionRate} className="h-1.5 flex-1 bg-white/10" />
+              <span className="w-9 text-right text-xs font-semibold text-foreground">{stats.completionRate}%</span>
             </div>
           </div>
 
-          {/* Progress Bar */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm text-white/70">
-              <span>{t('today_progress')}</span>
-              <span>{stats.completionRate}%</span>
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <ListChecks className="h-4 w-4 text-orange-400" />
+                {t('today_tasks')}
+              </h4>
+              <span className="text-xs text-muted-foreground">{formatDuration(stats.estimatedTime)}</span>
             </div>
-            <Progress 
-              value={stats.completionRate} 
-              className="h-2 bg-white/10"
-            />
-          </div>
-
-          {/* AI Insights & Motivation - Always Visible */}
-          {plan.ai_insights && (
-            <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-              <div className="flex items-center gap-2 mb-2">
-                <Lightbulb className="w-4 h-4 text-blue-400" />
-                <span className="text-sm font-medium text-blue-400">{t('insights_title')}</span>
-              </div>
-              <p className="text-sm text-white/80">{plan.ai_insights}</p>
+            <div className="space-y-2">
+              {visibleTasks.map((task, index) => {
+                const typeInfo = getTaskTypeInfo(task.task_type);
+                return (
+                  <button
+                    key={task.public_id}
+                    type="button"
+                    onClick={() => handleTaskToggle(task)}
+                    disabled={updateTaskStatus.isPending}
+                    className={cn(
+                      'group flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors',
+                      task.is_completed
+                        ? 'border-emerald-400/20 bg-emerald-400/[0.07]'
+                        : index === 0
+                          ? 'border-orange-400/25 bg-orange-400/[0.06] hover:bg-orange-400/10'
+                          : 'border-white/10 bg-white/[0.025] hover:bg-white/[0.055]'
+                    )}
+                  >
+                    <span className={cn(
+                      'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border',
+                      task.is_completed
+                        ? 'border-emerald-400 bg-emerald-400 text-slate-950'
+                        : 'border-white/25 text-transparent group-hover:border-orange-400/60'
+                    )}>
+                      <Check className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className={cn(
+                          'text-sm font-medium',
+                          task.is_completed ? 'text-muted-foreground line-through' : 'text-foreground'
+                        )}>
+                          {task.task_title}
+                        </span>
+                        <span className={cn('rounded-full border px-2 py-0.5 text-[10px] font-medium', priorityStyles[task.priority])}>
+                          {t(`priorities.${task.priority}`)}
+                        </span>
+                      </span>
+                      {task.task_description && (
+                        <span className="mt-1 block line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                          {task.task_description}
+                        </span>
+                      )}
+                      <span className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                        <span>{typeInfo.icon} {t(`task_types.${task.task_type}`)}</span>
+                        <span className="flex items-center gap-1">
+                          <Clock3 className="h-3 w-3" />
+                          {task.estimated_minutes} {t('minutes_short')}
+                        </span>
+                        {task.category && <span>{task.category}</span>}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          )}
-
-          {plan.motivation_message && (
-            <div className="p-4 bg-pink-500/10 rounded-lg border border-pink-500/20">
-              <div className="flex items-center gap-2 mb-2">
-                <Heart className="w-4 h-4 text-pink-400" />
-                <span className="text-sm font-medium text-pink-400">{t('motivation_title')}</span>
-              </div>
-              <p className="text-sm text-white/80">{plan.motivation_message}</p>
-            </div>
-          )}
-
-          {/* Expandable Tasks List */}
-          <AnimatePresence>
-            {isExpanded && plan.tasks && plan.tasks.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-3 overflow-hidden"
-              >
-                <div className="border-t border-white/10 pt-4">
-                  <h4 className="text-sm font-medium text-white/80 mb-3">{t('today_tasks')}</h4>
-                  
-                  {plan.tasks
-                    .sort((a: any, b: any) => getPriorityInfo(b.priority).order - getPriorityInfo(a.priority).order)
-                    .map((task: any) => {
-                      const typeInfo = getTaskTypeInfo(task.task_type);
-                      const priorityInfo = getPriorityInfo(task.priority);
-                      
-                      return (
-                        <motion.div
-                          key={task.public_id}
-                          className={cn(
-                            "p-3 rounded-lg border transition-all duration-200 cursor-pointer",
-                            task.is_completed
-                              ? "bg-green-500/10 border-green-500/20"
-                              : "bg-white/5 border-white/10 hover:bg-white/10"
-                          )}
-                          onClick={() => handleTaskToggle(
-                            task.public_id, 
-                            !task.is_completed, 
-                            task.estimated_minutes
-                          )}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className={cn(
-                              "w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 transition-colors",
-                              task.is_completed
-                                ? "bg-green-500 border-green-500"
-                                : "border-white/30 hover:border-white/50"
-                            )}>
-                              {task.is_completed && (
-                                <CheckCircle2 className="w-3 h-3 text-white" />
-                              )}
-                            </div>
-                            
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-sm">{typeInfo.icon}</span>
-                                <h5 className={cn(
-                                  "font-medium text-sm",
-                                  task.is_completed 
-                                    ? "text-green-300 line-through" 
-                                    : "text-white"
-                                )}>
-                                  {task.task_title}
-                                </h5>
-                                <span className={cn(
-                                  "px-2 py-0.5 rounded-full text-xs font-medium",
-                                  `bg-${priorityInfo.color}-500/20 text-${priorityInfo.color}-300`
-                                )}>
-                                  {priorityInfo.label}
-                                </span>
-                              </div>
-                              
-                              {task.task_description && (
-                                <p className="text-xs text-white/60 mb-2">
-                                  {task.task_description}
-                                </p>
-                              )}
-                              
-                              <div className="flex items-center gap-3 text-xs text-white/50">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  {task.estimated_minutes} {t('minutes_short')}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Star className="w-3 h-3" />
-                                  {task.points_reward} {t('pts')}
-                                </span>
-                                {task.category && (
-                                  <span className="px-2 py-0.5 bg-white/10 rounded-full">
-                                    {task.category}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2 pt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleGeneratePlan}
-              disabled={generatePlan.isPending}
-              className="flex-1 bg-white/5 border-white/20 text-white hover:bg-white/10 disabled:opacity-50"
-            >
-              {generatePlan.isPending ? (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  {t('generating_plan')}
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  {t('regenerate_plan')}
-                </>
-              )}
-            </Button>
-            
-            {onReflectionClick && (
+            {tasks.length > 3 && (
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                onClick={onReflectionClick}
-                className="flex-1 bg-purple-500/20 border-purple-500/30 text-purple-300 hover:bg-purple-500/30"
+                onClick={() => setShowAllTasks((value) => !value)}
+                className="mt-2 w-full text-muted-foreground"
               >
-                <Brain className="w-4 h-4 mr-2" />
-                {t('evening_retro')}
+                {showAllTasks ? t('show_less') : t('show_remaining_tasks', { count: tasks.length - 3 })}
+                {showAllTasks ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />}
               </Button>
             )}
           </div>
 
-          {/* Completion Celebration */}
-          {stats.isCompleted && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="text-center p-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-lg border border-green-500/30"
-            >
-              <div className="text-2xl mb-2">🎉</div>
-              <h4 className="font-semibold text-green-300 mb-1">{t('plan_completed')}</h4>
-              <p className="text-sm text-green-400">{t('great_job')}</p>
-              {onReflectionClick && (
-                <p className="text-xs text-green-500 mt-2">{t('time_to_reflect')}</p>
+          {plan.ai_insights && (
+            <div className="rounded-xl border border-blue-400/15 bg-blue-400/[0.055]">
+              <button
+                type="button"
+                onClick={() => setShowRationale((value) => !value)}
+                className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
+              >
+                <span className="flex items-center gap-2 text-xs font-medium text-blue-300">
+                  <Lightbulb className="h-3.5 w-3.5" />
+                  {t('why_this_plan')}
+                </span>
+                {showRationale ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+              </button>
+              {showRationale && (
+                <p className="border-t border-blue-400/10 px-3 py-3 text-xs leading-relaxed text-muted-foreground">
+                  {plan.ai_insights}
+                </p>
               )}
-            </motion.div>
+            </div>
           )}
 
-          {/* Learning Path Progress Section */}
-          {pathProgress && pathProgress.length > 0 && (
-            <div className="border-t border-white/10 pt-4 mt-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-medium text-white/80 flex items-center gap-2">
-                  <Route className="w-4 h-4 text-indigo-400" />
-                  {t('learning_path_progress')}
-                </h4>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowPathProgress(!showPathProgress)}
-                  className="text-white/60 hover:text-white/80 h-auto p-1"
-                >
-                  {showPathProgress ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                </Button>
-              </div>
-
-              {/* Path Progress Overview (Always Visible) */}
-              <div className="space-y-2">
-                {pathProgress.slice(0, showPathProgress ? pathProgress.length : 2).map((path) => (
-                  <div key={path.pathId} className="p-3 bg-white/5 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex-1 min-w-0">
-                        <h5 className="text-sm font-medium text-white truncate">{path.pathTitle}</h5>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="flex items-center gap-1 text-xs text-white/50">
-                            <Award className="w-3 h-3" />
-                            {path.completedMilestones}/{path.totalMilestones} {t('milestones')}
-                          </div>
-                          {path.currentMilestone && (
-                            <div className="flex items-center gap-1 text-xs text-indigo-300">
-                              <Target className="w-3 h-3" />
-                              {path.currentMilestone.name}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right ml-3">
-                        <div className="text-lg font-bold text-white">{path.overallProgress}%</div>
-                        <div className="text-xs text-white/40">{t('complete')}</div>
-                      </div>
-                    </div>
-                    
-                    {/* Progress Bar */}
-                    <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
-                      <motion.div
-                        className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 to-purple-600"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${path.overallProgress}%` }}
-                        transition={{ duration: 1, ease: 'easeOut' }}
-                      />
-                      
-                      {/* Milestone Markers */}
-                      {path.milestones.map((milestone, idx) => (
-                        <div
-                          key={milestone.id}
-                          className="absolute top-0 bottom-0 w-0.5 bg-white/20"
-                          style={{ 
-                            left: `${((idx + 1) / path.totalMilestones) * 100}%` 
-                          }}
-                          title={milestone.name}
-                        >
-                          {milestone.completed && (
-                            <CheckCircle2 
-                              className="absolute -top-1 -left-1.5 w-3 h-3 text-green-400 bg-slate-900 rounded-full" 
-                            />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Milestones Detail (when expanded) */}
-                    {showPathProgress && (
-                      <div className="mt-3 space-y-1">
-                        {path.milestones.map((milestone) => (
-                          <div
-                            key={milestone.id}
-                            className={cn(
-                              "flex items-center gap-2 text-xs p-2 rounded",
-                              milestone.completed 
-                                ? "bg-green-500/10 text-green-300" 
-                                : milestone.id === path.currentMilestone?.id
-                                ? "bg-indigo-500/10 text-indigo-300"
-                                : "text-white/40"
-                            )}
-                          >
-                            {milestone.completed ? (
-                              <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
-                            ) : (
-                              <div className="w-3 h-3 rounded-full border border-current flex-shrink-0" />
-                            )}
-                            <span className="flex-1 truncate">{milestone.name}</span>
-                            {milestone.completedAt && (
-                              <span className="text-xs opacity-60">
-                                {new Date(milestone.completedAt).toLocaleDateString()}
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Next Milestone Hint */}
-                    {path.nextMilestone && !showPathProgress && (
-                      <div className="mt-2 text-xs text-white/60 flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3" />
-                        Next: {path.nextMilestone.name}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {pathProgress.length > 2 && !showPathProgress && (
-                <button 
-                  onClick={() => setShowPathProgress(true)}
-                  className="w-full text-xs text-white/60 hover:text-white/80 transition-colors mt-2"
-                >
-                  {t('view_all_paths', { count: pathProgress.length })}
-                </button>
-              )}
+          <div className="flex flex-wrap justify-end gap-2 border-t border-white/10 pt-4">
+            {onReflectionClick && (
+              <Button variant="outline" size="sm" onClick={onReflectionClick}>
+                <Brain className="mr-2 h-4 w-4" />
+                {t('evening_retro')}
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={handleGeneratePlan} disabled={generatePlan.isPending}>
+              <Sparkles className="mr-2 h-4 w-4" />
+              {t('regenerate_plan')}
+            </Button>
+          </div>
+          {stats.isCompleted && (
+            <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.07] p-3 text-sm text-emerald-300">
+              <CheckCircle2 className="mr-2 inline h-4 w-4" />
+              {t('great_job')}
             </div>
           )}
         </div>
       )}
-    </motion.div>
+    </motion.section>
   );
 }
 
-// Loading skeleton component
 function DailyCoachCardSkeleton({ className }: { className?: string }) {
   return (
-    <div className={cn(
-      "relative bg-gradient-to-br from-indigo-600/20 via-purple-600/20 to-pink-500/20 rounded-2xl border border-white/20 backdrop-blur-sm p-6",
-      className
-    )}>
-      {/* Header Skeleton */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-9 h-9 bg-white/20 rounded-lg animate-pulse" />
+    <div className={cn('rounded-2xl border border-white/10 bg-card/70 p-5', className)}>
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 animate-pulse rounded-xl bg-white/10" />
         <div className="space-y-2">
-          <div className="w-32 h-4 bg-white/20 rounded animate-pulse" />
-          <div className="w-48 h-3 bg-white/10 rounded animate-pulse" />
+          <div className="h-4 w-40 animate-pulse rounded bg-white/10" />
+          <div className="h-3 w-56 animate-pulse rounded bg-white/5" />
         </div>
       </div>
-
-      {/* Stats Skeleton */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="p-3 bg-white/5 rounded-lg">
-            <div className="w-16 h-3 bg-white/20 rounded animate-pulse mb-2" />
-            <div className="w-12 h-5 bg-white/20 rounded animate-pulse" />
-          </div>
-        ))}
-      </div>
-
-      {/* Progress Skeleton */}
-      <div className="space-y-2">
-        <div className="flex justify-between">
-          <div className="w-24 h-3 bg-white/20 rounded animate-pulse" />
-          <div className="w-8 h-3 bg-white/20 rounded animate-pulse" />
-        </div>
-        <div className="w-full h-2 bg-white/10 rounded animate-pulse" />
+      <div className="mt-5 h-20 animate-pulse rounded-xl bg-white/5" />
+      <div className="mt-3 space-y-2">
+        {[0, 1, 2].map((item) => <div key={item} className="h-20 animate-pulse rounded-xl bg-white/5" />)}
       </div>
     </div>
   );

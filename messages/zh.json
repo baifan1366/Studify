@@ -99,6 +99,12 @@
     "view_past_reflections": "查看历史反思",
     "no_reflection_today": "今天还没有反思",
     "reflection_completed": "今日反思已完成",
+    "focus_plan": "今日重点",
+    "tasks_completed_short": "项任务已完成",
+    "remaining": "剩余",
+    "why_this_plan": "为什么安排这些任务",
+    "show_less": "收起",
+    "show_remaining_tasks": "再显示 {count} 项任务",
     "task_types": {
       "study": "学习",
       "review": "复习",

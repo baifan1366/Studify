@@ -449,7 +449,7 @@ async function generateDailyPlanWithToolCalling(userId: number, today: string) {
     const { getLLM } = require('@/lib/langChain/client');
     const llm = await getLLM({
       model: modelToUse,
-      temperature: 0.7,
+      temperature: 0.45,
     });
 
     // 构建包含完整上下文的提示
@@ -469,6 +469,9 @@ ${context.activeLearningPaths?.map((p: any) => `- ${p.title}: ${p.description}`)
 **Recent AI Notes:**
 ${context.recentAINotes?.map((n: any) => `- ${n.title}: ${n.ai_summary || n.content?.substring(0, 100)}`).join('\n') || 'None'}
 
+**Recent Mistakes:**
+${context.recentMistakes?.map((m: any) => `- ${m.quiz_question?.question_text || 'Unresolved quiz mistake'}${m.quiz_question?.explanation ? ` — ${m.quiz_question.explanation}` : ''}`).join('\n') || 'None'}
+
 **Coach Settings:**
 - Target Daily Minutes: ${context.coachSettings?.target_daily_minutes || 60}
 - Preferred Difficulty: ${context.coachSettings?.preferred_difficulty || 'medium'}
@@ -486,13 +489,13 @@ ${contextInfo}
 **Generate a plan with EXACTLY this structure:**
 {
   "title": "Today's Learning Plan",
-  "description": "Brief plan description IN ENGLISH",
-  "insights": "Key insights based on user's courses, learning paths, and recent notes IN ENGLISH",
-  "motivationMessage": "Personalized message referencing their progress IN ENGLISH",
+  "description": "One sentence stating today's concrete focus IN ENGLISH",
+  "insights": "One concise sentence explaining which real signals shaped the plan IN ENGLISH",
+  "motivationMessage": "A useful closing sentence of at most 12 words IN ENGLISH",
   "tasks": [
     {
       "title": "Specific task title IN ENGLISH",
-      "description": "Detailed, actionable description IN ENGLISH",
+      "description": "A measurable completion instruction that names the source and expected output IN ENGLISH",
       "type": "study",
       "priority": "high",
       "difficulty": "medium",
@@ -503,11 +506,15 @@ ${contextInfo}
   ]
 }
 
-**Requirements:**
-- Generate 4-6 tasks totaling ~${context.coachSettings?.target_daily_minutes || 60} minutes
-- Use actual course names from the user's active courses
-- Reference learning paths in task descriptions when relevant
-- Build upon concepts from recent AI notes
+**Planning standard:**
+- Generate 3-4 tasks totaling ${Math.max(30, (context.coachSettings?.target_daily_minutes || 60) - 10)}-${context.coachSettings?.target_daily_minutes || 60} minutes
+- Ground every task in one concrete item above: an active course, recent mistake, AI note, or current learning-path goal
+- Start each title with a clear action verb and make each description testable
+- Use actual course, note, mistake topic, or learning-path names; never invent a course or lesson
+- Prefer unfinished/recent course work first, then mistake repair or retrieval practice
+- Never create generic tasks such as "Focused Study Session", "Review materials", or "Practice Exercises"
+- Use only one high-priority task unless a real deadline is present; order tasks in execution sequence
+- Keep insights under 30 words and do not repeat lifetime study-time statistics
 - Task types: study, review, quiz, reading, practice, video, exercise
 - Priorities: low, medium, high, urgent
 - Difficulties: easy, medium, hard
@@ -562,6 +569,8 @@ ${contextInfo}
         console.error('❌ Invalid plan structure:', { hasTitle: !!aiPlan.title, hasTasks: !!aiPlan.tasks, isArray: Array.isArray(aiPlan.tasks) });
         throw new Error('Invalid plan structure from AI');
       }
+
+      aiPlan.tasks = aiPlan.tasks.slice(0, 4);
       
     } catch (parseError) {
       console.error('❌ Error parsing AI response:', parseError);
@@ -583,52 +592,54 @@ ${contextInfo}
 function getDefaultDailyPlan(context: any) {
   const targetMinutes = context.coachSettings?.target_daily_minutes || 60;
   const sessionLength = context.coachSettings?.preferred_session_length || 25;
+  const activeCourse = context.activeCourses?.[0]?.course?.title;
+  const recentNote = context.recentAINotes?.[0]?.title;
+  const recentMistake = context.recentMistakes?.[0]?.quiz_question?.question_text;
+  const focusName = activeCourse || recentNote || 'your current learning goal';
   
   return {
     title: "Today's Learning Plan",
-    description: "Personalized learning tasks crafted for you",
-    insights: "Based on your progress, today is ideal for consolidating fundamentals and advancing new content.",
+    description: `A focused ${targetMinutes}-minute plan built around ${focusName}.`,
+    insights: activeCourse
+      ? `Your most recent active course, ${activeCourse}, is the strongest next step.`
+      : "No recent course activity was available, so this plan uses retrieval and reflection.",
     motivationMessage: "Every small step is progress. Persistence leads to victory! 🚀",
     tasks: [
       {
-        title: "Review Yesterday's Content",
-        description: "Quickly review the key concepts you learned yesterday to reinforce memory",
-        type: "review",
-        priority: "high",
-        difficulty: "easy",
-        estimatedMinutes: 10,
-        pointsReward: 5,
-        category: "Review"
-      },
-      {
-        title: "Focused Study Session",
-        description: "Use the Pomodoro technique for focused learning on your current course",
-        type: "study",
+        title: activeCourse ? `Continue ${activeCourse}` : "Define today's learning outcome",
+        description: activeCourse
+          ? `Complete the next unfinished section in ${activeCourse} and record three key points.`
+          : "Choose one current topic and write one measurable outcome for this session.",
+        type: activeCourse ? "study" : "exercise",
         priority: "high",
         difficulty: "medium",
         estimatedMinutes: sessionLength,
         pointsReward: 15,
-        category: "Study"
+        category: activeCourse || "Planning"
       },
       {
-        title: "Practice Exercises",
-        description: "Complete relevant practice problems to test your understanding",
+        title: recentMistake ? "Repair a recent quiz mistake" : "Test recall without notes",
+        description: recentMistake
+          ? `Re-answer this question and explain why the correct answer works: ${recentMistake}`
+          : `Write five questions about ${focusName}, answer them without notes, then check your answers.`,
         type: "quiz",
         priority: "medium",
         difficulty: "medium",
         estimatedMinutes: 15,
         pointsReward: 10,
-        category: "Practice"
+        category: recentMistake ? "Mistake repair" : "Retrieval"
       },
       {
-        title: "Summarize Today's Learning",
-        description: "Write a summary of today's key points in your own words",
+        title: recentNote ? `Apply ideas from ${recentNote}` : "Create a concise learning summary",
+        description: recentNote
+          ? `Use one idea from ${recentNote} in a small example and note what remains unclear.`
+          : `Summarize ${focusName} in three bullets and add one question for the next session.`,
         type: "exercise",
         priority: "medium",
-        difficulty: "easy",
-        estimatedMinutes: 10,
-        pointsReward: 8,
-        category: "Reflection"
+        difficulty: "medium",
+        estimatedMinutes: 15,
+        pointsReward: 10,
+        category: recentNote ? "Application" : "Reflection"
       }
     ]
   };

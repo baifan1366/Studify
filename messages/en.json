@@ -5800,8 +5800,15 @@
     "lesson_completed": "Lesson Complete!",
     "module_lessons_count": "lessons",
     "lesson_completed_desc": "Great job! You can now move to the next lesson.",
-    "course_completed": "🎉 Course Completed!",
-    "course_completed_desc": "Congratulations! You have successfully completed this course."
+      "course_completed": "🎉 Course Completed!",
+      "course_completed_desc": "Congratulations! You have successfully completed this course.",
+      "current_learning_goals": "Learning goals & progress",
+      "current_learning_goals_desc": "What to focus on in this lesson",
+      "complete_lesson_objective": "Understand and complete “{title}”",
+      "up_next": "Up next",
+      "up_next_desc": "Continue your learning path",
+      "no_next_lesson": "You reached the final lesson",
+      "no_next_lesson_desc": "Complete this lesson to finish the course."
   },
   "AdminUsersPage": {
     "metadata_title": "Users | Admin | Studify",

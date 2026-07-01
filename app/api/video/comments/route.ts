@@ -365,27 +365,44 @@ export async function GET(request: NextRequest) {
     // For top-level comments, get reply counts
     let commentsWithReplies = comments;
     if (!parentId && comments) {
-      // Get reply counts for each comment
+      // Fetch the actual replies so clients can render the thread, not just its count.
       const commentIds = comments.map((c: any) => c.id);
       if (commentIds.length > 0) {
-        const { data: replyCounts } = await supabase
+        const { data: replyRows } = await supabase
           .from("video_comments")
-          .select("parent_id")
+          .select(
+            `
+            *,
+            author:profiles!video_comments_user_id_fkey(
+              id,
+              full_name,
+              display_name,
+              avatar_url
+            ),
+            reply_to_user:profiles!video_comments_reply_to_user_id_fkey(
+              id,
+              full_name,
+              display_name
+            )
+          `
+          )
           .in("parent_id", commentIds)
           .eq("is_deleted", false)
-          .eq("is_approved", true);
+          .eq("is_approved", true)
+          .order("created_at", { ascending: true });
 
-        const replyCountMap = new Map();
-        replyCounts?.forEach((reply: any) => {
-          replyCountMap.set(
-            reply.parent_id,
-            (replyCountMap.get(reply.parent_id) || 0) + 1
-          );
+        const repliesByParent = new Map<number, any[]>();
+        replyRows?.forEach((reply: any) => {
+          repliesByParent.set(reply.parent_id, [
+            ...(repliesByParent.get(reply.parent_id) || []),
+            reply,
+          ]);
         });
 
         commentsWithReplies = comments.map((comment: any) => ({
           ...comment,
-          replies_count: replyCountMap.get(comment.id) || 0,
+          replies: repliesByParent.get(comment.id) || [],
+          replies_count: repliesByParent.get(comment.id)?.length || 0,
         }));
       }
     }

@@ -220,10 +220,12 @@ export function ReactFlowMindMap({
   graph,
   className = "h-[520px]",
   layout = "hierarchical",
+  onAsk,
 }: {
   graph: MindMapGraph;
   className?: string;
   layout?: "hierarchical" | "radial";
+  onAsk?: (prompt: string) => void;
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const flow = useMemo(
@@ -233,6 +235,7 @@ export function ReactFlowMindMap({
   return (
     <div className={`overflow-hidden rounded-xl border border-slate-700/70 bg-slate-950 ${className}`}>
       <ReactFlow
+        colorMode="dark"
         nodes={flow.nodes}
         edges={flow.edges}
         nodeTypes={nodeTypes}
@@ -246,13 +249,23 @@ export function ReactFlowMindMap({
         maxZoom={1.5}
         proOptions={{ hideAttribution: true }}
         onNodeClick={(_, node) => {
-          if (layout !== "radial" || !node.data?.childCount) return;
-          setCollapsed((current) => {
-            const next = new Set(current);
-            if (next.has(node.id)) next.delete(node.id);
-            else next.add(node.id);
-            return next;
-          });
+          const label = String(node.data?.label || "");
+          const description = String(node.data?.description || "");
+          if (onAsk && label) {
+            onAsk(
+              `Explain "${label}" in the context of this video lesson.${
+                description ? ` Focus on: ${description}` : ""
+              }`
+            );
+          }
+          if (layout === "radial" && node.data?.childCount) {
+            setCollapsed((current) => {
+              const next = new Set(current);
+              if (next.has(node.id)) next.delete(node.id);
+              else next.add(node.id);
+              return next;
+            });
+          }
         }}
       >
         <MiniMap
@@ -268,7 +281,7 @@ export function ReactFlowMindMap({
         />
         <Controls
           showInteractive={false}
-          className="[&_.react-flow__controls-button]:!border-slate-700 [&_.react-flow__controls-button]:!bg-slate-900 [&_.react-flow__controls-button]:!fill-slate-200 [&_.react-flow__controls-button:hover]:!bg-slate-800"
+          className="!overflow-hidden !rounded-lg !border !border-slate-700 !bg-slate-900 [&_.react-flow__controls-button]:!border-0 [&_.react-flow__controls-button]:!border-b [&_.react-flow__controls-button]:!border-slate-700 [&_.react-flow__controls-button]:!bg-slate-900 [&_.react-flow__controls-button]:!text-slate-200 [&_.react-flow__controls-button:hover]:!bg-slate-800 [&_svg]:!fill-slate-200"
         />
         <Background color="#334155" variant={BackgroundVariant.Dots} gap={20} size={1} />
       </ReactFlow>

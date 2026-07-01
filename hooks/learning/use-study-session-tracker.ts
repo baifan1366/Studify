@@ -9,6 +9,7 @@ interface UseStudySessionTrackerOptions {
   activityType?: "video_watching" | "quiz_taking" | "reading" | "practice";
   autoStart?: boolean;
   minDuration?: number; // Minimum minutes to record (default: 1)
+  initialHistoricalSeconds?: number;
 }
 
 /**
@@ -21,6 +22,7 @@ export function useStudySessionTracker({
   activityType = "video_watching",
   autoStart = true,
   minDuration = 1,
+  initialHistoricalSeconds,
 }: UseStudySessionTrackerOptions) {
   const createSession = useCreateStudySession();
 
@@ -51,18 +53,20 @@ export function useStudySessionTracker({
         return { time_spent_sec: 0 };
       }
     },
-    enabled: !!lessonId,
+    enabled: !!lessonId && initialHistoricalSeconds === undefined,
     staleTime: 30000, // Cache for 30 seconds
   });
 
   // Update historical time when data is fetched (convert seconds to minutes)
   useEffect(() => {
-    if (progressData?.time_spent_sec !== undefined) {
-      const minutes = progressData.time_spent_sec / 60;
+    const historicalSeconds =
+      initialHistoricalSeconds ?? progressData?.time_spent_sec;
+    if (historicalSeconds !== undefined) {
+      const minutes = historicalSeconds / 60;
       historicalTimeRef.current = minutes;
-      console.log(`📊 Historical study time loaded: ${Math.round(minutes)} min (${progressData.time_spent_sec}s)`);
+      console.log(`📊 Historical study time loaded: ${Math.round(minutes)} min (${historicalSeconds}s)`);
     }
-  }, [progressData]);
+  }, [initialHistoricalSeconds, progressData]);
 
   // Track current session time
   const [currentSessionTime, setCurrentSessionTime] = useState(0);

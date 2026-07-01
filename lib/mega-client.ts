@@ -7,6 +7,8 @@ export interface ClientUploadResult {
   size: number
   type: string
   wasOptimized?: boolean
+  alreadyOptimized?: boolean
+  optimizationError?: string
   optimizationTime?: number
 }
 
@@ -220,10 +222,13 @@ export async function uploadToMegaClient(
   options?: {
     onProgress?: (progress: number) => void
     skipOptimization?: boolean // Allow skipping optimization if needed
+    requireOptimization?: boolean
   }
 ): Promise<ClientUploadResult> {
   let fileToUpload = file;
   let wasOptimized = false;
+  let alreadyOptimized = false;
+  let optimizationError: string | undefined;
   let optimizationTime = 0;
   
   // Auto-optimize MP4 videos for streaming (unless explicitly skipped)
@@ -238,6 +243,7 @@ export async function uploadToMegaClient(
       
       fileToUpload = optimizationResult.optimizedFile;
       wasOptimized = optimizationResult.wasOptimized;
+      alreadyOptimized = optimizationResult.alreadyOptimized;
       optimizationTime = optimizationResult.processingTime;
       
       if (optimizationResult.wasOptimized) {
@@ -247,7 +253,10 @@ export async function uploadToMegaClient(
       }
     } catch (error) {
       console.warn('⚠️ MP4 optimization failed, uploading original file:', error);
-      // Continue with original file if optimization fails
+      optimizationError = error instanceof Error ? error.message : 'MP4 optimization failed';
+      if (options?.requireOptimization) {
+        throw new Error(`Fast Start optimization failed: ${optimizationError}`);
+      }
     }
   }
   
@@ -306,6 +315,8 @@ export async function uploadToMegaClient(
       size: fileToUpload.size,
       type: fileType,
       wasOptimized,
+      alreadyOptimized,
+      optimizationError,
       optimizationTime: wasOptimized ? optimizationTime : undefined,
     }
   } catch (error) {

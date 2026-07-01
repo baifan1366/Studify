@@ -1,6 +1,6 @@
 // Hook for Video AI Assistant integration
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 interface VideoContext {
   courseSlug: string;
@@ -113,6 +113,7 @@ export function useSimpleVideoAI(videoContext: VideoContext) {
 export function useStreamingVideoAI(videoContext: VideoContext) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const askStreaming = async (
     question: string,
@@ -127,6 +128,8 @@ export function useStreamingVideoAI(videoContext: VideoContext) {
     setError(null);
 
     try {
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
       let clientEmbedding: number[] | undefined;
 
       // Generate client-side embedding for Fast mode
@@ -160,6 +163,7 @@ export function useStreamingVideoAI(videoContext: VideoContext) {
           aiMode,
           clientEmbedding, // Include client embedding if available
         }),
+        signal: abortController.signal,
       });
 
       if (!response.ok) {
@@ -218,15 +222,24 @@ export function useStreamingVideoAI(videoContext: VideoContext) {
 
       setIsLoading(false);
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setIsLoading(false);
+        return;
+      }
       const error = err instanceof Error ? err : new Error('Unknown error');
       setError(error);
       setIsLoading(false);
       throw error;
+    } finally {
+      abortControllerRef.current = null;
     }
   };
 
+  const cancel = () => abortControllerRef.current?.abort();
+
   return {
     askStreaming,
+    cancel,
     isLoading,
     error,
   };

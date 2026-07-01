@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BookOpenText, BrainCircuit, Check, FileQuestion, Loader2, Pencil, Save, Sparkles } from "lucide-react";
+import { BookOpenText, BrainCircuit, Check, FileQuestion, Loader2, Pencil, RefreshCw, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -84,7 +84,13 @@ function PracticeQuizViewer({ artifact }: { artifact: Artifact }) {
   );
 }
 
-function ArtifactViewer({ artifact }: { artifact: Artifact }) {
+function ArtifactViewer({
+  artifact,
+  onAsk,
+}: {
+  artifact: Artifact;
+  onAsk?: (prompt: string) => void;
+}) {
   if (artifact.artifact_type === "note") {
     return <AIMarkdownMessage content={artifact.content.markdown || ""} />;
   }
@@ -94,6 +100,7 @@ function ArtifactViewer({ artifact }: { artifact: Artifact }) {
         graph={artifact.content.graph || { nodes: [], edges: [] }}
         layout="radial"
         className="h-[620px]"
+        onAsk={onAsk}
       />
     );
   }
@@ -107,6 +114,7 @@ export function VideoLearningArtifacts({
   types,
   embedded = false,
   showActions = true,
+  onAsk,
 }: {
   lessonId?: string;
   timestampSec?: number;
@@ -114,11 +122,15 @@ export function VideoLearningArtifacts({
   types?: ArtifactType[];
   embedded?: boolean;
   showActions?: boolean;
+  onAsk?: (prompt: string) => void;
 }) {
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [active, setActive] = useState<Artifact | null>(null);
   const [generating, setGenerating] = useState<ArtifactType | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [loadingArtifacts, setLoadingArtifacts] = useState(true);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState("");
   const [draft, setDraft] = useState("");
@@ -127,6 +139,8 @@ export function VideoLearningArtifacts({
 
   useEffect(() => {
     const controller = new AbortController();
+    setLoadingArtifacts(true);
+    if (embedded) setActive(null);
     const query = lessonId ? `?lessonId=${encodeURIComponent(lessonId)}` : "";
     void fetch(`/api/video/artifacts${query}`, { signal: controller.signal })
       .then((response) => response.ok ? response.json() : Promise.reject())
@@ -144,6 +158,9 @@ export function VideoLearningArtifacts({
         if (error?.name !== "AbortError") {
           toast({ title: "Could not load your study library", variant: "destructive" });
         }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingArtifacts(false);
       });
     return () => controller.abort();
   }, [embedded, lessonId, toast, typeKey]);
@@ -164,17 +181,23 @@ export function VideoLearningArtifacts({
     setEditing(false);
   };
 
-  const generate = async (type: ArtifactType) => {
+  const generate = async (type: ArtifactType, replaceArtifactId?: string) => {
     setGenerating(type);
     try {
       const response = await fetch("/api/video/artifacts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, lessonId, timestampSec }),
+        body: JSON.stringify({ type, lessonId, timestampSec, replaceArtifactId }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Generation failed");
-      setArtifacts((items) => [data.artifact, ...items]);
+      setArtifacts((items) =>
+        replaceArtifactId
+          ? items.map((item) =>
+              item.public_id === replaceArtifactId ? data.artifact : item
+            )
+          : [data.artifact, ...items]
+      );
       open(data.artifact);
       window.dispatchEvent(
         new CustomEvent("video-learning-artifact-generated", {
@@ -187,6 +210,119 @@ export function VideoLearningArtifacts({
       setGenerating(null);
     }
   };
+
+  const rename = async () => {
+    if (!active || !title.trim()) return;
+    setSaving(true);
+    try {
+      const response = await fetch("/api/video/artifacts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: active.public_id,
+          title: title.trim(),
+          content: active.content,
+          sourceKind: active.source_kind,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Rename failed");
+      setArtifacts((items) =>
+        items.map((item) =>
+          item.public_id === data.artifact.public_id ? data.artifact : item
+        )
+      );
+      open(data.artifact);
+      setRenaming(false);
+      toast({ title: "Mind map renamed" });
+    } catch (error) {
+      toast({
+        title: "Could not rename mind map",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!active || !window.confirm(`Delete “${active.title}”? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      const response = await fetch("/api/video/artifacts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: active.public_id, sourceKind: active.source_kind }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Delete failed");
+      setArtifacts((items) => {
+        const remaining = items.filter((item) => item.public_id !== active.public_id);
+        setActive(
+          embedded
+            ? remaining.find(
+                (item) => !types?.length || types.includes(item.artifact_type)
+              ) || null
+            : null
+        );
+        return remaining;
+      });
+      toast({ title: "Mind map deleted" });
+    } catch (error) {
+      toast({
+        title: "Could not delete mind map",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const mindMapActions = active?.artifact_type === "mind_map" && (
+    <div className="flex flex-wrap items-center gap-2">
+      {renaming ? (
+        <>
+          <Input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            className="h-9 min-w-48 flex-1"
+            aria-label="Mind map name"
+            onKeyDown={(event) => event.key === "Enter" && void rename()}
+          />
+          <Button size="sm" onClick={rename} disabled={saving || !title.trim()}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save name
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => { setRenaming(false); setTitle(active.title); }}>
+            Cancel
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => void generate("mind_map", active.public_id)}
+            disabled={!!generating}
+          >
+            {generating === "mind_map" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Regenerate
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setRenaming(true)}>
+            <Pencil className="h-4 w-4" />
+            Rename
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5 text-destructive hover:text-destructive" onClick={remove} disabled={deleting}>
+            {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            Delete
+          </Button>
+        </>
+      )}
+    </div>
+  );
 
   const save = async () => {
     if (!active) return;
@@ -224,14 +360,40 @@ export function VideoLearningArtifacts({
           </Button>
         ))}
       </div>}
-      {filteredArtifacts.length > 0 ? (
+      {loadingArtifacts && embedded ? (
+        <div className="space-y-4" aria-label="Loading mind maps">
+          <div className="flex gap-2">
+            <div className="h-7 w-44 animate-pulse rounded-full bg-muted" />
+            <div className="h-7 w-32 animate-pulse rounded-full bg-muted" />
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="h-5 w-52 animate-pulse rounded bg-muted" />
+              <div className="h-8 w-64 animate-pulse rounded-lg bg-muted" />
+            </div>
+            <div className="relative h-[520px] overflow-hidden rounded-xl border border-border bg-muted/20">
+              <div className="absolute left-1/2 top-1/2 h-16 w-32 -translate-x-1/2 -translate-y-1/2 animate-pulse rounded-xl bg-muted" />
+              {[0, 1, 2, 3, 4, 5].map((item) => (
+                <div
+                  key={item}
+                  className="absolute h-12 w-28 animate-pulse rounded-lg bg-muted"
+                  style={{
+                    left: `${14 + (item % 3) * 34}%`,
+                    top: `${18 + Math.floor(item / 3) * 56}%`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : filteredArtifacts.length > 0 ? (
         <div className={library ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" : "flex gap-1.5 overflow-x-auto"}>
           {filteredArtifacts.slice(0, library ? 12 : 6).map((artifact) => {
             const Icon = artifact.artifact_type === "note" ? BookOpenText : artifact.artifact_type === "mind_map" ? BrainCircuit : FileQuestion;
             return (
             <button key={artifact.public_id} onClick={() => open(artifact)} className={library ? "rounded-xl border bg-card p-4 text-left transition-colors hover:bg-muted/50" : "flex shrink-0 items-center gap-1 rounded-full bg-background px-2.5 py-1 text-[11px] text-muted-foreground ring-1 ring-border hover:text-foreground"}>
               <div className={library ? "flex items-start gap-3" : "flex items-center gap-1"}>
-                {library ? <Icon className="mt-0.5 h-5 w-5 text-violet-500" /> : <Sparkles className="h-3 w-3" />}
+                <Icon className={library ? "mt-0.5 h-5 w-5 text-violet-500" : "h-3.5 w-3.5 text-violet-500"} />
                 <div className="min-w-0">
                   <div className="truncate font-medium text-foreground">{artifact.title}</div>
                   {library && <div className="mt-1 text-xs text-muted-foreground">{artifact.lesson?.title || "Video study"} · {artifact.artifact_type.replace("_", " ")}</div>}
@@ -254,7 +416,8 @@ export function VideoLearningArtifacts({
               Select another generated item above to switch views.
             </p>
           </div>
-          <ArtifactViewer artifact={active} />
+          {mindMapActions}
+          <ArtifactViewer artifact={active} onAsk={onAsk} />
         </div>
       )}
 
@@ -274,8 +437,11 @@ export function VideoLearningArtifacts({
             </div>
           ) : active ? (
             <div className="space-y-4">
-              <ArtifactViewer artifact={active} />
-              <Button variant="outline" onClick={() => setEditing(true)} className="gap-2"><Pencil className="h-4 w-4" /> Edit</Button>
+              {mindMapActions}
+              <ArtifactViewer artifact={active} onAsk={onAsk} />
+              {active.artifact_type !== "mind_map" && (
+                <Button variant="outline" onClick={() => setEditing(true)} className="gap-2"><Pencil className="h-4 w-4" /> Edit</Button>
+              )}
             </div>
           ) : null}
         </DialogContent>

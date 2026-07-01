@@ -42,7 +42,6 @@ import {
   Settings,
   MessageCircle,
   Send,
-  MoreHorizontal,
   SkipBack,
   SkipForward,
   Subtitles,
@@ -992,6 +991,23 @@ export default function BilibiliVideoPlayer({
   const handleLoadedMetadata = useCallback(() => {
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
+      logPerformance('VIDEO_METADATA_LOADED', {
+        duration: videoRef.current.duration.toFixed(2) + 's',
+        seekableRanges: videoRef.current.seekable.length,
+        timeSinceMount:
+          (performance.now() - perfTimings.current.componentMount).toFixed(2) + 'ms',
+      });
+    }
+  }, []);
+
+  const handleLoadedData = useCallback(() => {
+    if (perfTimings.current.firstFrameRendered === 0) {
+      perfTimings.current.firstFrameRendered = performance.now();
+      logPerformance('VIDEO_FIRST_FRAME_READY', {
+        currentTime: videoRef.current?.currentTime.toFixed(2),
+        timeSinceMount:
+          (perfTimings.current.firstFrameRendered - perfTimings.current.componentMount).toFixed(2) + 'ms',
+      });
     }
   }, []);
 
@@ -1080,6 +1096,15 @@ export default function BilibiliVideoPlayer({
 
   const handleProgress = useCallback(() => {
     if (videoRef.current && videoRef.current.buffered.length > 0) {
+      if (!videoSourceInfo.isHLS && perfTimings.current.firstByteReceived === 0) {
+        perfTimings.current.firstByteReceived = performance.now();
+        logPerformance('VIDEO_FIRST_RANGE_BUFFERED', {
+          bufferedStart: videoRef.current.buffered.start(0).toFixed(2),
+          bufferedEnd: videoRef.current.buffered.end(0).toFixed(2),
+          timeSinceMount:
+            (perfTimings.current.firstByteReceived - perfTimings.current.componentMount).toFixed(2) + 'ms',
+        });
+      }
       setBufferedRanges(videoRef.current.buffered);
       
       // Calculate loading progress based on buffered data
@@ -1102,7 +1127,7 @@ export default function BilibiliVideoPlayer({
         }
       }
     }
-  }, [isLoading]);
+  }, [isLoading, videoSourceInfo.isHLS]);
 
   // Handle initialTime when video metadata is loaded (only once)
   const hasSetInitialTime = useRef(false);
@@ -1111,6 +1136,12 @@ export default function BilibiliVideoPlayer({
       videoRef.current.currentTime = initialTime;
       setCurrentTime(initialTime);
       hasSetInitialTime.current = true;
+      logPerformance('VIDEO_RESUME_SEEK_REQUESTED', {
+        targetTime: initialTime.toFixed(2) + 's',
+        duration: duration.toFixed(2) + 's',
+        timeSinceMount:
+          (performance.now() - perfTimings.current.componentMount).toFixed(2) + 'ms',
+      });
 
       // Track view with initial time if provided
       if (onTimeUpdate) {
@@ -1822,7 +1853,7 @@ export default function BilibiliVideoPlayer({
   return (
     <div className="w-full bg-black">
       {/* Main Container with Video, Notes Sidebar, and QA Panel */}
-      <div className="flex w-full items-start transition-all duration-300">
+      <div className="flex w-full items-stretch transition-all duration-300">
         {/* Video Player Container */}
         <div
           ref={containerRef}
@@ -1872,11 +1903,19 @@ export default function BilibiliVideoPlayer({
             onPause={handlePause}
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
+            onLoadedData={handleLoadedData}
             onLoadStart={handleLoadStart}
             onCanPlay={handleCanPlay}
             onWaiting={handleWaiting}
             onPlaying={handlePlaying}
             onProgress={handleProgress}
+            onSeeked={() => {
+              logPerformance('VIDEO_RESUME_SEEK_COMPLETED', {
+                currentTime: videoRef.current?.currentTime.toFixed(2),
+                timeSinceMount:
+                  (performance.now() - perfTimings.current.componentMount).toFixed(2) + 'ms',
+              });
+            }}
             onError={(e) => {
               const videoElement = e.currentTarget;
               const error = videoElement.error;
@@ -2412,7 +2451,7 @@ export default function BilibiliVideoPlayer({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex h-9 items-center gap-1 [&>button]:inline-flex [&>button]:h-8 [&>button]:w-8 [&>button]:items-center [&>button]:justify-center [&>div>button]:inline-flex [&>div>button]:h-8 [&>div>button]:w-8 [&>div>button]:items-center [&>div>button]:justify-center">
                       {/* AI QA Button */}
                       {lessonId && (
                         <button
@@ -2898,11 +2937,10 @@ export default function BilibiliVideoPlayer({
               animate={{ opacity: 1, x: 0, width: qaPanel.isOpen ? '25%' : '30%' }}
               exit={{ opacity: 0, x: 50, width: 0 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="bg-slate-900 border-l border-slate-700 flex-shrink-0 flex flex-col overflow-y-auto"
-              style={{ maxHeight: 'calc(100vh - 200px)' }}
+              className="min-h-0 flex-shrink-0 flex flex-col overflow-hidden border-l border-slate-700 bg-slate-900"
             >
               {/* Sidebar Header */}
-              <div className="sticky top-0 z-10 bg-slate-800 border-b border-slate-700 p-4">
+              <div className="shrink-0 border-b border-slate-700 bg-slate-800 p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <BookOpen className="w-5 h-5 text-yellow-400" />
@@ -2952,7 +2990,7 @@ export default function BilibiliVideoPlayer({
               </div>
 
               {/* Notes List */}
-              <div className="overflow-y-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
+              <div className="min-h-0 flex-1 overflow-y-auto">
                 {nearbyNotes.length > 0 ? (
                   <div className="p-4 space-y-3">
                     {nearbyNotes.map((note) => {
@@ -3059,7 +3097,7 @@ export default function BilibiliVideoPlayer({
               </div>
 
               {/* Keyboard Hint */}
-              <div className="sticky bottom-0 bg-slate-800 border-t border-slate-700 p-3 text-center">
+              <div className="shrink-0 border-t border-slate-700 bg-slate-800 p-3 text-center">
                 <p className="text-xs text-gray-500">
                   {t('press_n_to_toggle') || '按'} <kbd className="px-2 py-1 bg-slate-700 rounded text-xs font-mono">N</kbd> {t('to_toggle_sidebar') || '切换侧边栏'}
                 </p>
@@ -3076,8 +3114,7 @@ export default function BilibiliVideoPlayer({
               animate={{ opacity: 1, x: 0, width: showNotesSidebar ? '25%' : '30%' }}
               exit={{ opacity: 0, x: 50, width: 0 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="bg-slate-900 border-l border-slate-700 flex-shrink-0 flex flex-col overflow-hidden"
-              style={{ height: 'calc(100vh - 310px)' }}
+              className="min-h-0 flex-shrink-0 flex flex-col overflow-hidden border-l border-slate-700 bg-slate-900"
             >
               <VideoQAPanel
                 lessonId={lessonId}
@@ -3117,7 +3154,7 @@ export default function BilibiliVideoPlayer({
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex min-h-10 flex-wrap items-center justify-end gap-2">
             <button
               onClick={handleLike}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
@@ -3148,9 +3185,6 @@ export default function BilibiliVideoPlayer({
             >
               <Download size={16} />
               <span>{t("download")}</span>
-            </button>
-            <button className="p-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-lg transition-colors">
-              <MoreHorizontal size={16} />
             </button>
           </div>
         </div>
@@ -3478,9 +3512,7 @@ export default function BilibiliVideoPlayer({
                                       onChange={(e) =>
                                         setReplyContent(e.target.value)
                                       }
-                                      placeholder={t(
-                                        "VideoPlayer.comment_placeholder"
-                                      )}
+                                      placeholder={t("comment_placeholder")}
                                       className="w-full p-2 border border-gray-200 dark:border-gray-600 rounded-lg resize-none focus:outline-none focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                                       rows={2}
                                     />

@@ -402,7 +402,7 @@ export function useCreateComment() {
     onSuccess: (data, variables) => {
       // The API returns the new comment with full author data
       // Update the cache optimistically with the new comment
-      if (data.success && data.comment) {
+      if (data.success && data.comment && !variables.parentId) {
         queryClient.setQueryData(
           ["video-comments", variables.lessonId, undefined, 1, 50, "newest"],
           (oldData: any) => {
@@ -416,6 +416,28 @@ export function useCreateComment() {
                 ...oldData.pagination,
                 total: (oldData.pagination?.total || 0) + 1,
               },
+            };
+          }
+        );
+      }
+
+      if (data.success && data.comment && variables.parentId) {
+        queryClient.setQueriesData(
+          { queryKey: ["video-comments", variables.lessonId, undefined] },
+          (oldData: any) => {
+            if (!oldData?.comments) return oldData;
+            return {
+              ...oldData,
+              comments: oldData.comments.map((comment: any) => {
+                const commentId = comment.public_id || comment.id;
+                if (String(commentId) !== String(variables.parentId)) return comment;
+                const existingReplies = comment.replies || [];
+                return {
+                  ...comment,
+                  replies: [...existingReplies, data.comment],
+                  replies_count: existingReplies.length + 1,
+                };
+              }),
             };
           }
         );

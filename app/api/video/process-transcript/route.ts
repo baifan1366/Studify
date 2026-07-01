@@ -5,7 +5,7 @@ import { createAdminClient } from "@/utils/supabase/server";
 // Process video transcript and create embeddings
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await authorize("admin");
+    const authResult = await authorize(["admin", "tutor"]);
     if (authResult instanceof NextResponse) return authResult;
 
     const body = await request.json();
@@ -23,12 +23,19 @@ export async function POST(request: NextRequest) {
     // Get lesson info
     const { data: lesson, error: lessonError } = await supabase
       .from("course_lesson")
-      .select("id, title, public_id")
+      .select("id, title, public_id, course:course_id(owner_id)")
       .eq("public_id", lessonId)
       .single();
 
     if (lessonError || !lesson) {
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
+    }
+    const lessonCourse = Array.isArray(lesson.course) ? lesson.course[0] : lesson.course;
+    if (
+      authResult.payload.role === "tutor" &&
+      lessonCourse?.owner_id !== authResult.user.profile?.id
+    ) {
+      return NextResponse.json({ error: "You can only process your own lesson" }, { status: 403 });
     }
 
     console.log(`📹 Processing transcript for lesson: ${lesson.title}`);
@@ -238,7 +245,7 @@ async function extractTranscriptFromVideo(videoUrl: string): Promise<string> {
 // API endpoint to extract transcript from video (can be called separately)
 export async function PUT(request: NextRequest) {
   try {
-    const authResult = await authorize('admin');
+    const authResult = await authorize(['admin', 'tutor']);
     if (authResult instanceof NextResponse) return authResult;
 
     const body = await request.json();
@@ -256,7 +263,7 @@ export async function PUT(request: NextRequest) {
     // Get lesson with attachments
     const { data: lesson, error: lessonError } = await supabase
       .from('course_lesson')
-      .select('id, public_id, title, attachments, content_url, transcript')
+      .select('id, public_id, title, attachments, content_url, transcript, course:course_id(owner_id)')
       .eq('public_id', lessonId)
       .single();
 
@@ -265,6 +272,13 @@ export async function PUT(request: NextRequest) {
         { error: 'Lesson not found' },
         { status: 404 }
       );
+    }
+    const lessonCourse = Array.isArray(lesson.course) ? lesson.course[0] : lesson.course;
+    if (
+      authResult.payload.role === 'tutor' &&
+      lessonCourse?.owner_id !== authResult.user.profile?.id
+    ) {
+      return NextResponse.json({ error: 'You can only process your own lesson' }, { status: 403 });
     }
 
     // Check if already has transcript

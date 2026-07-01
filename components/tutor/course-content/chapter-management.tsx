@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Edit, Trash2, Clock, List, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Edit, Trash2, Clock, List, ChevronDown, ChevronUp, Loader2, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -79,6 +80,30 @@ export default function ChapterManagement({
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingChapters, setIsGeneratingChapters] = useState(false);
+
+  const handleGenerateChapters = async () => {
+    if (chapters.length > 0 && !window.confirm('Replace the existing chapters with AI-generated chapters?')) {
+      return;
+    }
+    setIsGeneratingChapters(true);
+    try {
+      const response = await fetch(`/api/course-lesson/${lessonId}/generate-chapters`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ replaceExisting: true }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Chapter generation failed');
+      await refetch();
+      setIsExpanded(true);
+      toast.success(`Generated ${data.chapters.length} grounded chapters`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not generate chapters');
+    } finally {
+      setIsGeneratingChapters(false);
+    }
+  };
 
   // Format time display
   const formatTime = (seconds?: number): string => {
@@ -232,21 +257,37 @@ export default function ChapterManagement({
           )}
         </Button>
 
-        {children || (
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button 
-                variant="default" 
-                size="sm" 
-                onClick={handleCreateNew}
-                className="gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                {t('add_new_chapter')}
-              </Button>
-            </DialogTrigger>
-          </Dialog>
-        )}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={handleGenerateChapters}
+            disabled={isGeneratingChapters}
+          >
+            {isGeneratingChapters ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            Generate chapters with AI
+          </Button>
+          {children || (
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleCreateNew}
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  {t('add_new_chapter')}
+                </Button>
+              </DialogTrigger>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       {/* Expandable chapters list */}

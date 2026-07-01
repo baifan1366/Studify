@@ -180,9 +180,7 @@ ${transcript}`);
     }, { status: 201 });
   }
 
-  const { data: artifact, error } = await context.supabase
-    .from("video_learning_artifacts")
-    .insert({
+  const artifactPayload = {
       user_id: context.profile.id,
       lesson_id: lesson.id,
       course_id: lesson.course_id ?? module?.course_id ?? null,
@@ -191,7 +189,21 @@ ${transcript}`);
       content: generated,
       source_timestamp_sec: Math.max(0, Math.floor(Number(body.timestampSec || 0))),
       generation_status: "completed",
-    })
+      updated_at: new Date().toISOString(),
+  };
+  const replaceArtifactId = String(body.replaceArtifactId || "");
+  const artifactMutation = replaceArtifactId
+    ? context.supabase
+        .from("video_learning_artifacts")
+        .update(artifactPayload)
+        .eq("public_id", replaceArtifactId)
+        .eq("user_id", context.profile.id)
+        .eq("artifact_type", type)
+        .is("deleted_at", null)
+    : context.supabase
+        .from("video_learning_artifacts")
+        .insert(artifactPayload);
+  const { data: artifact, error } = await artifactMutation
     .select("public_id, artifact_type, title, content, source_timestamp_sec, generation_status, created_at, updated_at")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -243,4 +255,33 @@ export async function PATCH(request: NextRequest) {
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ artifact: data });
+}
+
+export async function DELETE(request: NextRequest) {
+  const context = await getContext(request);
+  if ("error" in context) return context.error;
+  const body = await request.json();
+  if (!body.id) {
+    return NextResponse.json({ error: "Artifact id is required" }, { status: 400 });
+  }
+
+  if (body.sourceKind === "course_note") {
+    const { error } = await context.supabase
+      .from("course_notes")
+      .update({ is_deleted: true, updated_at: new Date().toISOString() })
+      .eq("public_id", body.id)
+      .eq("user_id", context.profile.id)
+      .eq("is_deleted", false);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  } else {
+    const { error } = await context.supabase
+      .from("video_learning_artifacts")
+      .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("public_id", body.id)
+      .eq("user_id", context.profile.id)
+      .is("deleted_at", null);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
 }

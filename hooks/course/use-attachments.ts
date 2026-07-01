@@ -67,13 +67,16 @@ export function useUploadAttachment() {
       file: File
       onProgress?: (progress: number) => void
     }) => {
+      const isMp4 =
+        file.type === 'video/mp4' ||
+        /\.(mp4|m4v)$/i.test(file.name)
       // Step 1: Upload file to MEGA (client-side, bypasses Next.js limits)
       // Automatically optimizes MP4 videos for streaming
       onProgress?.(5)
       
       const uploadResult = await uploadToMegaClient(file, {
-        // The Whisper worker performs and validates FFmpeg Fast Start.
-        skipOptimization: true,
+        skipOptimization: false,
+        requireOptimization: isMp4,
         onProgress: (megaProgress) => {
           // Map MEGA progress to 5-90% of total progress
           const mappedProgress = 5 + (megaProgress * 0.85)
@@ -101,7 +104,18 @@ export function useUploadAttachment() {
           title: title.trim(),
           url: uploadResult.url,
           size: uploadResult.size,
-          type: uploadResult.type
+          type: uploadResult.type,
+          faststart_status:
+            !isMp4
+              ? 'not_applicable'
+              : uploadResult.wasOptimized
+                ? 'optimized'
+                : uploadResult.alreadyOptimized
+                  ? 'already_optimized'
+                  : 'failed',
+          faststart_processed_at:
+            isMp4 ? new Date().toISOString() : null,
+          faststart_error: uploadResult.optimizationError || null,
         }),
       })
 

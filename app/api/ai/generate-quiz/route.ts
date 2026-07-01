@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authorize } from '@/utils/auth/server-guard';
-import { StudifyToolCallingAgent } from '@/lib/langChain/tool-calling-integration';
+import { getLLM } from '@/lib/langChain/client';
 import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
-import { z } from 'zod';
 import { DEFAULT_TEXT_MODEL } from '@/lib/ai/model-policy';
+import { createClient } from '@/utils/supabase/server';
 
 // Get model based on AI mode: thinking mode uses THINKING model, fast mode uses FAST model
 function getModel(mode: 'fast' | 'thinking' = 'fast'): string {
   return DEFAULT_TEXT_MODEL;
 }
-
 export interface GenerateQuizRequest {
   topic: string;
   num_questions?: number;
@@ -102,6 +101,37 @@ export async function POST(req: NextRequest): Promise<NextResponse<GenerateQuizR
 
     const aiMode = body.aiMode || 'fast';
     const selectedModel = getModel(aiMode);
+    let groundedLessonContent = body.lesson_content?.trim() || '';
+
+    if (body.lessonId) {
+      const supabase = await createClient();
+      const lessonColumn = /^\d+$/.test(body.lessonId) ? 'id' : 'public_id';
+      const { data: lesson } = await supabase
+        .from('course_lesson')
+        .select('id, transcript')
+        .eq(lessonColumn, body.lessonId)
+        .eq('is_deleted', false)
+        .single();
+      if (lesson) {
+        const { data: segments } = await supabase
+          .from('video_segments')
+          .select('start_time, end_time, text')
+          .eq('lesson_id', lesson.id)
+          .order('start_time', { ascending: true })
+          .limit(300);
+        groundedLessonContent = (segments || [])
+          .map((segment) => `[${Math.floor(segment.start_time || 0)}s] ${segment.text}`)
+          .join('\n') || lesson.transcript || groundedLessonContent;
+      }
+    }
+
+    if (!groundedLessonContent) {
+      return NextResponse.json({
+        success: false,
+        error: 'Lesson content is not ready',
+        message: 'Add a transcript or finish video processing before generating a grounded quiz.'
+      }, { status: 409 });
+    }
 
     console.log(`🎯 AI Quiz Generation Request from user ${userId}:`, {
       topic: body.topic,
@@ -122,7 +152,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<GenerateQuizR
         question_types: body.question_types || ['multiple_choice', 'true_false'],
         focus_topics: body.focus_topics,
         include_explanations: body.include_explanations ?? true,
-        lesson_content: body.lesson_content,
+        lesson_content: groundedLessonContent,
         custom_instructions: body.custom_instructions
       }, userId, selectedModel, aiMode === 'thinking');
 
@@ -147,31 +177,14 @@ export async function POST(req: NextRequest): Promise<NextResponse<GenerateQuizR
         }
       });
     } catch (aiError) {
-      console.error('❌ AI Quiz Generation failed, falling back to mock:', aiError);
-      
-      // Fallback to mock quiz if AI fails
-      const mockQuiz = await generateMockQuiz({
-        topic: body.topic,
-        num_questions: body.num_questions || 5,
-        difficulty: body.difficulty || 2,
-        question_types: body.question_types || ['multiple_choice', 'true_false'],
-        focus_topics: body.focus_topics,
-        include_explanations: body.include_explanations ?? true,
-        lesson_content: body.lesson_content,
-        custom_instructions: body.custom_instructions
-      });
-
-      const processingTime = Date.now() - startTime;
-
+      console.error('AI Quiz Generation failed:', aiError);
       return NextResponse.json({
-        success: true,
-        quiz: mockQuiz,
-        message: `Generated ${mockQuiz.questions.length} quiz questions (fallback mode)`,
-        metadata: {
-          aiGenerated: false,
-          processingTimeMs: processingTime
-        }
-      });
+        success: false,
+        error: 'AI quiz generation failed',
+        message: aiError instanceof Error
+          ? aiError.message
+          : 'The model could not create a valid grounded quiz. Please retry.'
+      }, { status: 502 });
     }
 
   } catch (error) {
@@ -217,7 +230,7 @@ QUIZ REQUIREMENTS:
 - Question types: ${params.question_types.join(', ')}
 - Include explanations: ${params.include_explanations ? 'Yes' : 'No'}
 ${params.focus_topics ? `- Focus areas: ${params.focus_topics}` : ''}
-${params.lesson_content ? `\n\nBASE CONTENT:\n"${params.lesson_content.slice(0, 1000)}${params.lesson_content.length > 1000 ? '...' : ''}"` : ''}
+${params.lesson_content ? `\n\nBASE CONTENT:\n"${params.lesson_content.slice(0, 24000)}${params.lesson_content.length > 24000 ? '...' : ''}"` : ''}
 ${params.custom_instructions ? `\n\nADDITIONAL INSTRUCTIONS:\n${params.custom_instructions}` : ''}
 
 CRITICAL: Return a valid JSON object in this EXACT format (no markdown, no code blocks):
@@ -258,23 +271,30 @@ IMPORTANT RULES:
    - Educational and test real understanding
    - Clear and unambiguous
    - Appropriate for the difficulty level
-   - Diverse in content coverage
+   - Diverse in content coverage and cognitive skill
+   - Grounded in specific facts, examples, processes, or claims from BASE CONTENT
+   - Unique: never repeat the same stem, answer, fact, or wording
+   - Include a mix of recall, application, comparison, and analysis
    
 5. Return ONLY the JSON object, no markdown formatting, no \`\`\`json code blocks.`;
 
-  // Create Tool Calling Agent with structured output
-  const agent = new StudifyToolCallingAgent({
-    enabledTools: ['get_course_data', 'search'],
-    temperature: 0.8, // Higher creativity for quiz generation
+  const generationStartedAt = Date.now();
+  const llm = await getLLM({
     model,
+    streaming: false,
+    temperature: 0.35,
+    maxTokens: 7000,
     enableReasoning: enableThinking,
-    userId
   });
-
-  await agent.initialize();
-
-  // Execute with tools
-  const result = await agent.execute(prompt, { userId });
+  const response = await llm.invoke(prompt);
+  const output = typeof response.content === 'string'
+    ? response.content
+    : response.content.map((part: any) => part.text || '').join('');
+  const result = {
+    output,
+    toolsUsed: [] as string[],
+    executionTime: Date.now() - generationStartedAt,
+  };
   
   console.log('🤖 AI response received, parsing JSON...', {
     outputLength: result.output?.length || 0,
@@ -316,6 +336,29 @@ IMPORTANT RULES:
     if (typeof q.points !== 'number') q.points = 1;
     if (typeof q.difficulty !== 'number') q.difficulty = params.difficulty;
   });
+
+  if (quiz.questions.length !== params.num_questions) {
+    throw new Error(`Expected ${params.num_questions} questions but received ${quiz.questions.length}`);
+  }
+  const normalizedQuestions = quiz.questions.map((q: any) =>
+    String(q.question_text || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  );
+  if (new Set(normalizedQuestions).size !== normalizedQuestions.length) {
+    throw new Error('The model returned duplicate quiz questions');
+  }
+  for (const question of quiz.questions) {
+    if (!question.question_text || String(question.question_text).trim().length < 15) {
+      throw new Error('The model returned an incomplete question');
+    }
+    if (question.question_type === 'multiple_choice') {
+      if (!Array.isArray(question.options) || question.options.length !== 4) {
+        throw new Error('Every multiple-choice question must have exactly four options');
+      }
+      if (!question.options.includes(question.correct_answer)) {
+        throw new Error('A multiple-choice correct answer does not match its options');
+      }
+    }
+  }
 
   // Calculate total points if not provided
   if (typeof quiz.total_points !== 'number') {
@@ -463,85 +506,4 @@ export async function GET(): Promise<NextResponse> {
       ]
     }
   });
-}
-
-/**
- * Generate mock quiz for testing (replace with actual AI generation)
- */
-async function generateMockQuiz(params: {
-  topic: string;
-  num_questions: number;
-  difficulty: number;
-  question_types: string[];
-  focus_topics?: string;
-  include_explanations: boolean;
-  lesson_content?: string;
-  custom_instructions?: string;
-}) {
-  const questions = [];
-  
-  for (let i = 0; i < params.num_questions; i++) {
-    const questionType = params.question_types[i % params.question_types.length];
-    
-    let question;
-    switch (questionType) {
-      case 'multiple_choice':
-        question = {
-          id: `q-${Date.now()}-${i}`,
-          question_text: `What is a key concept in ${params.topic}? (Question ${i + 1})`,
-          question_type: 'multiple_choice',
-          options: [
-            `Primary concept of ${params.topic}`,
-            `Secondary aspect of ${params.topic}`,
-            `Alternative approach in ${params.topic}`,
-            `Unrelated concept`
-          ],
-          correct_answer: `Primary concept of ${params.topic}`,
-          explanation: params.include_explanations ? `This is the fundamental concept in ${params.topic}.` : '',
-          points: Math.max(1, params.difficulty),
-          difficulty: params.difficulty,
-          position: i + 1
-        };
-        break;
-        
-      case 'true_false':
-        question = {
-          id: `q-${Date.now()}-${i}`,
-          question_text: `${params.topic} is considered an important subject in this field.`,
-          question_type: 'true_false',
-          options: [],
-          correct_answer: true,
-          explanation: params.include_explanations ? `This statement is true because ${params.topic} is fundamental to understanding the field.` : '',
-          points: Math.max(1, params.difficulty),
-          difficulty: params.difficulty,
-          position: i + 1
-        };
-        break;
-        
-      default:
-        question = {
-          id: `q-${Date.now()}-${i}`,
-          question_text: `Explain the main principles of ${params.topic}.`,
-          question_type: questionType,
-          options: [],
-          correct_answer: `The main principles include understanding the fundamental concepts and applications of ${params.topic}.`,
-          explanation: params.include_explanations ? `A good answer should demonstrate understanding of key concepts and provide examples.` : '',
-          points: Math.max(1, params.difficulty * 2),
-          difficulty: params.difficulty,
-          position: i + 1
-        };
-    }
-    
-    questions.push(question);
-  }
-  
-  const totalPoints = questions.reduce((sum, q) => sum + q.points, 0);
-  
-  return {
-    title: `Quiz: ${params.topic}`,
-    description: `A quiz on ${params.topic} with ${questions.length} questions.`,
-    total_points: totalPoints,
-    estimated_time_minutes: Math.ceil(questions.length * 2),
-    questions
-  };
 }

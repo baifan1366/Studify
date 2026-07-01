@@ -16,7 +16,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, url, size, type } = body
+    const {
+      title,
+      url,
+      size,
+      type,
+      faststart_status,
+      faststart_processed_at,
+      faststart_error,
+    } = body
 
     // Validate required fields
     if (!title || !url || !size || !type) {
@@ -104,7 +112,10 @@ export async function POST(request: NextRequest) {
         title: title.trim(),
         url,
         size,
-        type
+        type,
+        faststart_status: faststart_status || (type === 'video' ? 'failed' : 'not_applicable'),
+        faststart_processed_at: faststart_processed_at || null,
+        faststart_error: faststart_error || null,
       })
       .select()
       .single()

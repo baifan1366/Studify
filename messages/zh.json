@@ -5800,8 +5800,15 @@
     "lesson_completed": "课时完成！",
     "module_lessons_count": "课时",
     "lesson_completed_desc": "做得好！你现在可以进入下一课时。",
-    "course_completed": "🎉 课程已完成！",
-    "course_completed_desc": "恭喜！你已成功完成此课程。"
+      "course_completed": "🎉 课程已完成！",
+      "course_completed_desc": "恭喜！你已成功完成此课程。",
+      "current_learning_goals": "学习目标与进度",
+      "current_learning_goals_desc": "本课需要掌握的重点",
+      "complete_lesson_objective": "理解并完成“{title}”",
+      "up_next": "下一课推荐",
+      "up_next_desc": "继续你的学习路径",
+      "no_next_lesson": "你已到达最后一课",
+      "no_next_lesson_desc": "完成本课即可完成该课程。"
   },
   "AdminUsersPage": {
     "metadata_title": "用户 | 管理员 | Studify",

@@ -340,6 +340,7 @@ export default function CourseLearningContent({
         : "practice",
     autoStart: true,
     minDuration: 2, // Only record sessions >= 2 minutes
+    initialHistoricalSeconds: enhancedLessonProgress?.time_spent_sec ?? 0,
   });
 
   // Store trackProgress in a ref to avoid dependency issues - only update when lessonId changes
@@ -858,6 +859,42 @@ export default function CourseLearningContent({
     });
   };
 
+  const currentLessonIndex = allLessons.findIndex(
+    (lesson: any) => lesson.public_id === currentLessonId
+  );
+  const nextLessonRecommendation =
+    currentLessonIndex >= 0 && currentLessonIndex < allLessons.length - 1
+      ? allLessons[currentLessonIndex + 1]
+      : null;
+  const currentLessonDuration =
+    enhancedLessonProgress?.video_duration_sec ||
+    currentLesson?.duration_sec ||
+    0;
+  const playbackProgress =
+    currentLessonDuration > 0
+      ? (currentVideoTimestamp / currentLessonDuration) * 100
+      : 0;
+  const savedProgress = Number(
+    lessonProgress?.progressPct ??
+      enhancedLessonProgress?.progress_pct ??
+      0
+  );
+  const currentLessonProgress =
+    lessonProgress?.state === "completed"
+      ? 100
+      : Math.min(100, Math.max(savedProgress, playbackProgress));
+  const currentLearningObjectives =
+    Array.isArray(course?.learning_objectives) &&
+    course.learning_objectives.length > 0
+      ? course.learning_objectives.slice(0, 3)
+      : currentLesson
+        ? [
+            t("LessonNavigation.complete_lesson_objective", {
+              title: currentLesson.title,
+            }),
+          ]
+        : [];
+
   if (courseLoading) {
     return (
       <div className="w-full h-full">
@@ -1210,6 +1247,112 @@ export default function CourseLearningContent({
           </div>
         )}
       </div>
+
+      {currentLesson?.kind === "video" && (
+        <section className="mb-6 grid gap-4 lg:grid-cols-[1.35fr_1fr]">
+          <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="rounded-lg bg-orange-500/10 p-2 text-orange-500">
+                  <Target className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-foreground">
+                    {t("LessonNavigation.current_learning_goals")}
+                  </h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {t("LessonNavigation.current_learning_goals_desc")}
+                  </p>
+                </div>
+              </div>
+              <span className="rounded-full bg-orange-500/10 px-2.5 py-1 text-xs font-semibold text-orange-600 dark:text-orange-400">
+                {Math.round(currentLessonProgress)}%
+              </span>
+            </div>
+
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+              <motion.div
+                className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400"
+                initial={false}
+                animate={{ width: `${currentLessonProgress}%` }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              />
+            </div>
+
+            <ul className="mt-4 grid gap-2">
+              {currentLearningObjectives.map((objective: string, index: number) => (
+                <li
+                  key={`${objective}-${index}`}
+                  className="flex items-start gap-2 text-sm text-foreground"
+                >
+                  <CheckCircle
+                    className={`mt-0.5 h-4 w-4 shrink-0 ${
+                      currentLessonProgress >= 95
+                        ? "text-emerald-500"
+                        : "text-muted-foreground"
+                    }`}
+                  />
+                  <span>{objective}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+            <div className="flex items-start gap-3">
+              <div className="rounded-lg bg-blue-500/10 p-2 text-blue-500">
+                <SkipForward className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-foreground">
+                  {t("LessonNavigation.up_next")}
+                </h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {t("LessonNavigation.up_next_desc")}
+                </p>
+              </div>
+            </div>
+
+            {nextLessonRecommendation ? (
+              <button
+                type="button"
+                onClick={handleNextLesson}
+                className="group mt-4 w-full rounded-lg border border-border bg-muted/30 p-3 text-left transition-colors hover:border-orange-500/40 hover:bg-orange-500/5"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-orange-600 dark:text-orange-400">
+                      {nextLessonRecommendation.moduleTitle}
+                    </p>
+                    <p className="mt-1 truncate text-sm font-semibold text-foreground">
+                      {nextLessonRecommendation.title}
+                    </p>
+                    <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5" />
+                      {t("LessonNavigation.duration", {
+                        minutes: nextLessonRecommendation.duration_sec
+                          ? Math.ceil(nextLessonRecommendation.duration_sec / 60)
+                          : 0,
+                      })}
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-orange-500" />
+                </div>
+              </button>
+            ) : (
+              <div className="mt-4 rounded-lg border border-dashed border-border p-4 text-center">
+                <CheckCircle className="mx-auto h-6 w-6 text-emerald-500" />
+                <p className="mt-2 text-sm font-medium text-foreground">
+                  {t("LessonNavigation.no_next_lesson")}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t("LessonNavigation.no_next_lesson_desc")}
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Lesson Navigation */}
       <div className="flex flex-col sm:flex-row items-center justify-between mb-6 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 lg:p-4 gap-3 sm:gap-4">

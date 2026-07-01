@@ -26,6 +26,14 @@ import {
   Minimize2,
   MessageSquarePlus,
   GripHorizontal,
+  Activity,
+  Database,
+  Layers3,
+  CheckCircle2,
+  AlertTriangle,
+  Bot,
+  Save,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -42,6 +50,8 @@ import {
   useVideoQAHistory,
   type VideoHistoryItem,
 } from "@/hooks/video/use-video-learning-data";
+import { useCreateNote } from "@/hooks/course/use-course-notes";
+import AIContentRecommendations from "@/components/ai/ai-content-recommendations";
 
 interface AIMessage {
   role: "user" | "assistant";
@@ -74,6 +84,12 @@ interface AISource {
   confidence?: number;
 }
 
+interface AIJobUpdate {
+  message: string;
+  progress: number;
+  timestamp: number;
+}
+
 interface VideoAIAssistantProps {
   courseSlug: string;
   currentLessonId: string | null;
@@ -99,11 +115,15 @@ export default function VideoAIAssistant({
   const [isExpanded, setIsExpanded] = useState(false);
   const [panelHeight, setPanelHeight] = useState(620);
   const [mounted, setMounted] = useState(false);
+  const [jobUpdates, setJobUpdates] = useState<AIJobUpdate[]>([]);
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [savedMessageTimestamp, setSavedMessageTimestamp] = useState<number | null>(null);
   const wasLoadingRef = useRef(false);
   const { toast } = useToast();
   const t = useTranslations("VideoAIAssistant");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const createNote = useCreateNote();
   const { data: historyData, isLoading: historyLoading } = useVideoQAHistory(
     currentLessonId || undefined,
     isExpanded
@@ -132,7 +152,7 @@ export default function VideoAIAssistant({
     selectedText: selectedText || undefined,
   };
 
-  const { askStreaming, isLoading, error } = useStreamingVideoAI(videoContext);
+  const { askStreaming, cancel, isLoading, error } = useStreamingVideoAI(videoContext);
 
   const aiModeOptions = [
     {
@@ -209,6 +229,23 @@ export default function VideoAIAssistant({
     }
   };
 
+  const getJobProgress = (status: string) => {
+    const normalized = status.toLowerCase();
+    if (normalized.includes("embedding")) return 18;
+    if (normalized.includes("search") || normalized.includes("retriev")) return 48;
+    if (normalized.includes("answer") || normalized.includes("generat")) return 78;
+    return 28;
+  };
+
+  const getJobIcon = (status: string) => {
+    const normalized = status.toLowerCase();
+    if (normalized.includes("failed") || normalized.includes("not found")) return AlertTriangle;
+    if (normalized.includes("complete") || normalized.includes("found")) return CheckCircle2;
+    if (normalized.includes("search") || normalized.includes("retriev")) return Database;
+    if (normalized.includes("answer") || normalized.includes("generat")) return Layers3;
+    return Activity;
+  };
+
   const handleAskQuestion = async (prompt?: string) => {
     const promptText = (prompt ?? question).trim();
     if (!promptText) return;
@@ -226,6 +263,10 @@ export default function VideoAIAssistant({
 
     setConversation((prev) => [...prev, userMessage]);
     setQuestion("");
+    setJobUpdates([
+      { message: "Preparing your question...", progress: 8, timestamp: Date.now() },
+    ]);
+    setSavedMessageTimestamp(null);
 
     // Create initial assistant message for streaming
     const initialMessage: AIMessage = {
@@ -263,6 +304,10 @@ export default function VideoAIAssistant({
         },
         // onComplete callback - finalize with metadata
         (data) => {
+          setJobUpdates((updates) => [
+            ...updates,
+            { message: "Answer complete", progress: 100, timestamp: Date.now() },
+          ]);
           setConversation((prev) => {
             const newConv = [...prev];
             const lastIdx = newConv.length - 1;
@@ -299,6 +344,19 @@ export default function VideoAIAssistant({
         },
         // onStatus callback - update loading stage based on status
         (status: string) => {
+          setJobUpdates((updates) =>
+            [
+              ...updates,
+              {
+                message: status.replace(
+                  /^[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D\s]+/u,
+                  ""
+                ),
+                progress: getJobProgress(status),
+                timestamp: Date.now(),
+              },
+            ].slice(-6)
+          );
           setConversation((prev) => {
             const newConv = [...prev];
             const lastIdx = newConv.length - 1;
@@ -498,6 +556,75 @@ export default function VideoAIAssistant({
     setConversation([]);
     setQuestion("");
     setView("chat");
+    setJobUpdates([]);
+  };
+
+  const stopResponse = () => {
+    cancel();
+    setJobUpdates((updates) => [
+      ...updates,
+      { message: "Response stopped", progress: 100, timestamp: Date.now() },
+    ]);
+    setConversation((items) => {
+      const next = [...items];
+      const lastIndex = next.length - 1;
+      if (lastIndex >= 0 && next[lastIndex].role === "assistant") {
+        next[lastIndex] = {
+          ...next[lastIndex],
+          content: next[lastIndex].content || "Response stopped.",
+          isPartial: false,
+          loadingStage: "complete",
+        };
+      }
+      return next;
+    });
+  };
+
+  const saveAnswerAsNote = async (message: AIMessage) => {
+    if (!currentLessonId || !message.content) return;
+    const messageIndex = conversation.findIndex(
+      (item) => item.timestamp === message.timestamp
+    );
+    const userQuestion =
+      [...conversation.slice(0, messageIndex)]
+        .reverse()
+        .find((item) => item.role === "user")?.content || "Video AI answer";
+    const sourceMarkdown = (message.sources || [])
+      .map(
+        (source, index) =>
+          `${index + 1}. ${
+            source.url ? `[${source.title}](${source.url})` : source.title
+          }${source.contentPreview ? ` — ${source.contentPreview}` : ""}`
+      )
+      .join("\n");
+    setIsSavingNote(true);
+    try {
+      await createNote.mutateAsync({
+        lessonId: currentLessonId,
+        timestampSec: currentTimestamp,
+        title:
+          userQuestion.length > 60
+            ? `${userQuestion.slice(0, 60)}...`
+            : userQuestion,
+        content: `# ${userQuestion}\n\n> Video timestamp: **${formatTimestamp(
+          currentTimestamp
+        )}**\n\n${message.content}${
+          sourceMarkdown ? `\n\n## Sources\n${sourceMarkdown}` : ""
+        }`,
+        aiSummary: message.content,
+        tags: ["ai-qa", "video-note"],
+        noteType: "ai_generated",
+      });
+      setSavedMessageTimestamp(message.timestamp);
+      toast({
+        title: "Saved as note",
+        description: "The answer is now available in your Notes tab.",
+      });
+    } catch {
+      toast({ title: "Could not save note", variant: "destructive" });
+    } finally {
+      setIsSavingNote(false);
+    }
   };
 
   const startResizing = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -630,7 +757,14 @@ export default function VideoAIAssistant({
       </div>
 
       {currentLessonId && (
-        <VideoLearningArtifacts lessonId={currentLessonId} timestampSec={currentTimestamp} />
+        <VideoLearningArtifacts
+          lessonId={currentLessonId}
+          timestampSec={currentTimestamp}
+          onAsk={(prompt) => {
+            if (!isExpanded) setIsExpanded(true);
+            void handleAskQuestion(prompt);
+          }}
+        />
       )}
 
       {/* Conversation Display */}
@@ -691,11 +825,56 @@ export default function VideoAIAssistant({
                     ? "bg-blue-500 text-white"
                     : `bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white ${
                         msg.isPartial
-                          ? "border-l-4 border-blue-500 animate-pulse"
+                          ? "border-l-4 border-blue-500"
                           : ""
                       }`
                 }`}
               >
+                {msg.role === "assistant" && msg.isPartial && (
+                  <div className="mb-3 overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
+                    <div className="flex items-center justify-between border-b border-border/60 px-3 py-2.5">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <div className="relative grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-500/10">
+                          <Bot className="h-4 w-4 text-emerald-500" />
+                          <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-card" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold">
+                            {jobUpdates.at(-1)?.message || "Processing question..."}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">
+                            Retrieving evidence from this lesson
+                          </div>
+                        </div>
+                      </div>
+                      <span className="ml-2 font-mono text-xs font-semibold text-emerald-500">
+                        {jobUpdates.at(-1)?.progress || 8}%
+                      </span>
+                    </div>
+                    <div className="px-3 pt-2.5">
+                      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-400 transition-all duration-500"
+                          style={{ width: `${jobUpdates.at(-1)?.progress || 8}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="m-2 max-h-36 space-y-1 overflow-y-auto rounded-lg bg-muted/30 p-1">
+                      {jobUpdates.slice(-5).map((update) => {
+                        const JobIcon = getJobIcon(update.message);
+                        return (
+                          <div
+                            key={update.timestamp}
+                            className="flex items-start gap-2 rounded-md px-2 py-1.5 text-xs"
+                          >
+                            <JobIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                            <span className="text-foreground/90">{update.message}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center space-x-2">
                   <div className="text-sm leading-relaxed flex-1">
                     {msg.role === "assistant" && msg.content ? (
@@ -924,6 +1103,36 @@ export default function VideoAIAssistant({
                           </div>
                         </div>
                       )}
+
+                    <div className="border-t border-gray-200 pt-2 dark:border-gray-600">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full gap-2"
+                        onClick={() => void saveAnswerAsNote(msg)}
+                        disabled={isSavingNote || savedMessageTimestamp === msg.timestamp}
+                      >
+                        {isSavingNote ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : savedMessageTimestamp === msg.timestamp ? (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        ) : (
+                          <Save className="h-4 w-4" />
+                        )}
+                        {savedMessageTimestamp === msg.timestamp ? "Saved to notes" : "Save as note"}
+                      </Button>
+                    </div>
+                    {msg.content.length > 50 && (
+                      <AIContentRecommendations
+                        aiResponse={msg.content}
+                        questionContext={
+                          [...conversation]
+                            .reverse()
+                            .find((item) => item.role === "user")?.content || ""
+                        }
+                        className="rounded-xl bg-background/60 p-3"
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -968,6 +1177,17 @@ export default function VideoAIAssistant({
               <Send size={16} />
             )}
           </Button>
+          {isLoading && (
+            <Button
+              onClick={stopResponse}
+              size="sm"
+              variant="outline"
+              className="px-3 text-destructive hover:text-destructive"
+              aria-label="Stop response"
+            >
+              <X size={16} />
+            </Button>
+          )}
         </div>
         {queuedQuestions.length > 0 && (
           <div className="mt-2 text-xs text-muted-foreground">

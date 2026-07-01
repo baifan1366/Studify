@@ -5799,8 +5799,15 @@
     "lesson_completed": "Lesson Complete!",
     "module_lessons_count": "lessons",
     "lesson_completed_desc": "Great job! You can now move to the next lesson.",
-    "course_completed": "🎉 Course Completed!",
-    "course_completed_desc": "Congratulations! You have successfully completed this course."
+      "course_completed": "🎉 Course Completed!",
+      "course_completed_desc": "Congratulations! You have successfully completed this course.",
+      "current_learning_goals": "Matlamat & kemajuan pembelajaran",
+      "current_learning_goals_desc": "Perkara yang perlu difokuskan dalam pelajaran ini",
+      "complete_lesson_objective": "Fahami dan lengkapkan “{title}”",
+      "up_next": "Seterusnya",
+      "up_next_desc": "Teruskan laluan pembelajaran anda",
+      "no_next_lesson": "Anda telah sampai ke pelajaran terakhir",
+      "no_next_lesson_desc": "Lengkapkan pelajaran ini untuk menamatkan kursus."
   },
   "AdminUsersPage": {
     "metadata_title": "Users | Admin | Studify",

@@ -126,9 +126,9 @@ export async function POST(
       try {
         console.log(`📹 Auto-processing transcript for lesson: ${data.title}`);
         
-        fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/video/process-transcript`, {
+        fetch(`${new URL(req.url).origin}/api/video/process-transcript`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', cookie: req.headers.get('cookie') || '' },
           body: JSON.stringify({
             lessonId: data.public_id,
             transcript: body.transcript
@@ -144,9 +144,9 @@ export async function POST(
       try {
         console.log(`🎙️ Auto-extracting transcript for lesson: ${data.title}`);
         
-        fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/video/process-transcript`, {
+        fetch(`${new URL(req.url).origin}/api/video/process-transcript`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', cookie: req.headers.get('cookie') || '' },
           body: JSON.stringify({
             lessonId: data.public_id
           })

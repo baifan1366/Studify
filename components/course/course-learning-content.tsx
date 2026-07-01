@@ -38,6 +38,7 @@ import {
   Layers,
   PanelLeftOpen,
   PanelLeftClose,
+  BrainCircuit,
 } from "lucide-react";
 import { useCourseBySlug } from "@/hooks/course/use-courses";
 import { useModuleByCourseId } from "@/hooks/course/use-course-module";
@@ -64,6 +65,7 @@ import CourseKnowledgeGraph from "./course-knowledge-graph";
 import CourseNoteContent from "./course-note-content";
 import CourseChapterContent from "./course-chapter-content";
 import VideoAIAssistant from "./video-ai-assistant";
+import { VideoLearningArtifacts } from "@/components/video/video-learning-artifacts";
 import BilibiliVideoPlayer from "@/components/video/bilibili-video-player";
 import { useDanmaku } from "@/hooks/video/use-danmaku";
 import { 
@@ -244,7 +246,7 @@ export default function CourseLearningContent({
     initialLessonId || null
   );
   const [activeTab, setActiveTab] = useState<
-    "chapters" | "notes" | "quiz" | "ai"
+    "chapters" | "notes" | "quiz" | "mindmap" | "ai"
   >("chapters");
   const [currentVideoTimestamp, setCurrentVideoTimestamp] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -257,6 +259,18 @@ export default function CourseLearningContent({
   const [showToolPanel, setShowToolPanel] = useState(false); // For mobile tool panel toggle
   const [isMobileView, setIsMobileView] = useState(false);
   const [showCourseContent, setShowCourseContent] = useState(false); // For mobile course content sidebar
+
+  useEffect(() => {
+    const handleArtifactGenerated = (event: Event) => {
+      const detail = (event as CustomEvent<{ type?: string; lessonId?: string }>).detail;
+      if (detail.lessonId && detail.lessonId !== currentLessonId) return;
+      if (detail.type === "mind_map") setActiveTab("mindmap");
+      if (detail.type === "quiz") setActiveTab("quiz");
+    };
+
+    window.addEventListener("video-learning-artifact-generated", handleArtifactGenerated);
+    return () => window.removeEventListener("video-learning-artifact-generated", handleArtifactGenerated);
+  }, [currentLessonId]);
 
   const { data: course, isLoading: courseLoading } =
     useCourseBySlug(courseSlug);
@@ -1379,6 +1393,22 @@ export default function CourseLearningContent({
                 </Button>
                 <Button
                   onClick={() => {
+                    setActiveTab("mindmap");
+                    setShowToolPanel(true);
+                  }}
+                  variant="ghost"
+                  size="sm"
+                  className={`p-2 ${
+                    activeTab === "mindmap"
+                      ? "text-orange-500"
+                      : "text-gray-600 dark:text-gray-400"
+                  }`}
+                  aria-label="Mind maps"
+                >
+                  <BrainCircuit size={16} />
+                </Button>
+                <Button
+                  onClick={() => {
                     setActiveTab("ai");
                     setShowToolPanel(true);
                   }}
@@ -1583,6 +1613,19 @@ export default function CourseLearningContent({
               <span className="hidden sm:inline">Quiz</span>
             </Button>
             <Button
+              onClick={() => setActiveTab("mindmap")}
+              variant="ghost"
+              size="sm"
+              className={`gap-2 flex items-center px-3 py-2 text-sm border-b-2 border-b-transparent ${
+                activeTab === "mindmap"
+                  ? "text-orange-500"
+                  : "text-gray-600 dark:text-gray-400"
+              }`}
+            >
+              <BrainCircuit size={16} />
+              <span className="hidden sm:inline">Mind Map</span>
+            </Button>
+            <Button
               onClick={() => setActiveTab("ai")}
               variant="ghost"
               size="sm"
@@ -1601,8 +1644,12 @@ export default function CourseLearningContent({
           <div
             className={`p-3 lg:p-4 overflow-y-auto ${
               isMobileView
-                ? "flex-1 min-h-0 max-h-[calc(80vh-8rem)]"
-                : "max-h-64 sm:max-h-80 lg:max-h-96"
+              ? "flex-1 min-h-0 max-h-[calc(80vh-8rem)]"
+                : activeTab === "ai"
+                  ? "max-h-none overflow-visible"
+                  : activeTab === "mindmap"
+                  ? "max-h-[72vh]"
+                  : "max-h-64 sm:max-h-80 lg:max-h-96"
             }`}
           >
             {activeTab === "chapters" && currentLesson?.kind === "video" && (
@@ -1622,7 +1669,13 @@ export default function CourseLearningContent({
             )}
 
             {activeTab === "quiz" && currentLessonId && (
-              <>
+              <div className="space-y-6">
+                <VideoLearningArtifacts
+                  lessonId={currentLessonId}
+                  types={["quiz"]}
+                  embedded
+                  showActions={false}
+                />
                 {quiz.isLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-600 mx-auto mb-4"></div>
@@ -1661,7 +1714,7 @@ export default function CourseLearningContent({
                     onQuizComplete={quiz.handleQuizComplete}
                   />
                 )}
-              </>
+              </div>
             )}
 
             {activeTab === "quiz" && !currentLessonId && (
@@ -1672,6 +1725,27 @@ export default function CourseLearningContent({
                 </h3>
                 <p className="text-gray-600">
                   {t("Quiz.select_lesson_message")}
+                </p>
+              </div>
+            )}
+
+            {activeTab === "mindmap" && currentLessonId && (
+              <VideoLearningArtifacts
+                lessonId={currentLessonId}
+                types={["mind_map"]}
+                embedded
+                showActions={false}
+              />
+            )}
+
+            {activeTab === "mindmap" && !currentLessonId && (
+              <div className="py-8 text-center">
+                <BrainCircuit size={48} className="mx-auto mb-4 text-gray-400" />
+                <h3 className="mb-2 text-lg font-semibold text-foreground">
+                  Select a lesson
+                </h3>
+                <p className="text-muted-foreground">
+                  Choose a lesson to view its generated mind maps.
                 </p>
               </div>
             )}

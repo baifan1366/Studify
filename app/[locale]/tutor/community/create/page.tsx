@@ -27,16 +27,17 @@ export default async function CreateGroupPage() {
   const t = await getTranslations('CreateGroupPage');
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-4">
-      <div className="max-w-2xl mx-auto pt-8">
+    <div className="min-h-screen bg-background p-4 text-foreground">
+      <div className="mx-auto max-w-2xl pt-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">{t('page_title')}</h1>
-          <p className="text-gray-300">
+          <div className="mb-3 h-1 w-12 rounded-full bg-orange-500" />
+          <h1 className="mb-2 text-3xl font-bold text-foreground">{t('page_title')}</h1>
+          <p className="text-muted-foreground">
             {t('page_description')}
           </p>
         </div>
         
-        <Suspense fallback={<div className="text-white">{t('loading')}</div>}>
+        <Suspense fallback={<div className="text-muted-foreground">{t('loading')}</div>}>
           <CreateGroupForm />
         </Suspense>
       </div>

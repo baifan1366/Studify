@@ -85,7 +85,7 @@ export async function GET(
   const postIds = posts.map((post) => post.id);
   const postPublicIds = posts.map((post) => post.public_id);
 
-  const [reactionsResponse, filesResponse] = await Promise.all([
+  const [reactionsResponse, filesResponse, commentsResponse] = await Promise.all([
     supabaseClient
       .from("community_reaction")
       .select("emoji, target_id")
@@ -95,6 +95,13 @@ export async function GET(
       .from("community_post_files")
       .select("*")
       .in("post_id", postPublicIds),
+    supabaseClient
+      .from("community_comment")
+      .select("id, public_id, post_id, author_id, body, created_at, author:profiles ( display_name, avatar_url )")
+      .in("post_id", postIds)
+      .eq("is_deleted", false)
+      .is("parent_id", null)
+      .order("created_at", { ascending: false }),
   ]);
 
   // Group reactions and files by their respective post IDs
@@ -121,6 +128,15 @@ export async function GET(
     {}
   );
 
+  const commentsByPost = (commentsResponse.data || []).reduce(
+    (acc: Record<number, any[]>, comment: any) => {
+      if (!acc[comment.post_id]) acc[comment.post_id] = [];
+      if (acc[comment.post_id].length < 2) acc[comment.post_id].push(comment);
+      return acc;
+    },
+    {}
+  );
+
   // Process posts to aggregate reactions, comments count, and files
   const processedPosts = posts.map((post: any) => {
     const hashtags = post.post_hashtags
@@ -130,6 +146,7 @@ export async function GET(
       ...post,
       comments_count: post.comments[0]?.count || 0,
       reactions: reactionsByPost[post.id] || {},
+      preview_comments: commentsByPost[post.id] || [],
       files: filesByPost[post.public_id] || [],
       hashtags: hashtags,
     };

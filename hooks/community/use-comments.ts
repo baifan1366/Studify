@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Comment } from "@/interface/community/comment-interface";
+import { Post } from "@/interface/community/post-interface";
 import { toast } from "sonner";
 
 // Fetch comments for a post
@@ -113,10 +114,26 @@ export const useCreateComment = (groupSlug: string, postSlug: string) => {
 
   return useMutation({
     mutationFn: createComment,
-    onSuccess: () => {
+    onSuccess: (newComment) => {
       toast.success("Comment posted successfully!", {
         description: "Your comment has been added.",
       });
+
+      const updatePostList = (posts: Post[] | undefined) =>
+        posts?.map((post) =>
+          post.id === newComment.post_id
+            ? {
+                ...post,
+                comments_count: (post.comments_count || 0) + 1,
+                preview_comments: [newComment, ...(post.preview_comments || [])].slice(0, 2),
+              }
+            : post
+        );
+
+      queryClient.setQueryData(["groupPosts", groupSlug], updatePostList);
+      queryClient.setQueryData(["popularPosts"], updatePostList);
+      queryClient.setQueriesData<Post[]>({ queryKey: ["searchPosts"] }, updatePostList);
+
       // Invalidate and refetch comments
       queryClient.invalidateQueries({
         queryKey: ["comments", groupSlug, postSlug],

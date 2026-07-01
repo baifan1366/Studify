@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 function LoadingFallback() {
   return (
-    <div className="h-screen flex items-center justify-center bg-gray-50">
+    <div className="flex h-screen items-center justify-center bg-background text-foreground">
       <Card>
         <CardContent className="pt-6">
           <div className="text-center">
@@ -44,7 +44,7 @@ export default async function ClassroomCollaboratePage({ params, searchParams }:
   const { session } = await searchParams;
 
   return (
-    <div className="h-screen bg-gray-50">
+    <div className="h-screen bg-background text-foreground">
       <div className="p-4 h-full">
         <Suspense fallback={<LoadingFallback />}>
           <ClassroomCollaboration 

@@ -41,7 +41,7 @@ export default function AchievementContent() {
   if (isError) return <div>Failed to load achievements</div>;
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 bg-gray-50 min-h-screen text-gray-800">
+    <div className="min-h-screen bg-background p-4 text-foreground sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
         <Header />
         <SummaryCard unlockedCount={unlockedCount} totalCount={totalCount} />

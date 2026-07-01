@@ -82,7 +82,7 @@ export function ClassroomCollaboration({
   }, []);
 
   return (
-    <div className={`h-full flex flex-col bg-gray-50 ${className}`}>
+    <div className={`flex h-full flex-col bg-background text-foreground ${className}`}>
       {/* Collaboration toolbar */}
       <Card className="mb-4">
         <CardHeader className="pb-2">

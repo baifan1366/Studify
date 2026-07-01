@@ -81,69 +81,69 @@ export default function CreateGroupForm({ onSuccess, onCancel }: CreateGroupForm
   };
 
   return (
-    <Card className="bg-white/5 border-white/10">
+    <Card className="border-border bg-card text-card-foreground shadow-sm">
       <CardHeader>
-        <CardTitle className="text-white">Create New Group</CardTitle>
-        <CardDescription className="text-gray-300">
+        <CardTitle className="text-foreground">Create New Group</CardTitle>
+        <CardDescription className="text-muted-foreground">
           Create a community group to organize discussions around specific topics
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name" className="text-white">Group Name</Label>
+            <Label htmlFor="name">Group Name</Label>
             <Input
               id="name"
               value={formData.name}
               onChange={(e) => handleNameChange(e.target.value)}
               placeholder="e.g., Machine Learning"
-              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+              className="border-input bg-background text-foreground placeholder:text-muted-foreground"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="slug" className="text-white">URL Slug</Label>
+            <Label htmlFor="slug">URL Slug</Label>
             <Input
               id="slug"
               value={formData.slug}
               onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
               placeholder="machine-learning"
-              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+              className="border-input bg-background text-foreground placeholder:text-muted-foreground"
               required
             />
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted-foreground">
               This will be used in the URL: /community/{formData.slug || 'your-slug'}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description" className="text-white">Description (Optional)</Label>
+            <Label htmlFor="description">Description (Optional)</Label>
             <Textarea
               id="description"
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               placeholder="Describe what this group is about..."
-              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 min-h-[100px]"
+              className="min-h-[100px] border-input bg-background text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="visibility" className="text-white">Visibility</Label>
+            <Label htmlFor="visibility">Visibility</Label>
             <Select
               value={formData.visibility}
               onValueChange={(value: 'public' | 'private') => 
                 setFormData(prev => ({ ...prev, visibility: value }))
               }
             >
-              <SelectTrigger className="bg-white/10 border-white/20 text-white">
+              <SelectTrigger className="border-input bg-background text-foreground">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-white/20">
-                <SelectItem value="public" className="text-white hover:bg-white/10">
+              <SelectContent>
+                <SelectItem value="public">
                   Public - Anyone can see and join
                 </SelectItem>
-                <SelectItem value="private" className="text-white hover:bg-white/10">
+                <SelectItem value="private">
                   Private - Members only
                 </SelectItem>
               </SelectContent>
@@ -163,7 +163,7 @@ export default function CreateGroupForm({ onSuccess, onCancel }: CreateGroupForm
             <Button
               type="submit"
               disabled={isCreatingGroup || !formData.name.trim() || !formData.slug.trim()}
-              className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+              className="flex-1 bg-orange-500 text-white hover:bg-orange-600"
             >
               {isCreatingGroup && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {isCreatingGroup ? 'Creating...' : 'Create Group'}
@@ -174,7 +174,7 @@ export default function CreateGroupForm({ onSuccess, onCancel }: CreateGroupForm
                 variant="outline"
                 onClick={onCancel}
                 disabled={isCreatingGroup}
-                className="border-white/20 text-white hover:bg-white/10"
+                className="border-border hover:bg-muted"
               >
                 Cancel
               </Button>

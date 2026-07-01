@@ -87,9 +87,9 @@ export function AttachmentViewer({ attachment, showDownloadButton = true }: Atta
 
   if (loading) {
     return (
-      <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded-md">
+      <div className="flex items-center space-x-2 rounded-md bg-muted p-2">
         <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-        <span className="text-sm text-gray-600">Loading...</span>
+        <span className="text-sm text-muted-foreground">Loading...</span>
       </div>
     );
   }

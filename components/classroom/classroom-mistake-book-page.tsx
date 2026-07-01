@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
+import { useRouter } from "next/navigation";
+import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,6 +47,7 @@ import {
   CheckCircle2,
   HelpCircle,
   ArrowRight,
+  Sparkles,
 } from "lucide-react";
 import {
   useMistakeBook,
@@ -54,6 +58,8 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function MistakeBookPageContent() {
   const t = useTranslations("MistakeBookPage");
+  const locale = useLocale();
+  const router = useRouter();
 
   const GUIDE_STEPS = [
     {
@@ -234,6 +240,17 @@ export default function MistakeBookPageContent() {
     }
   };
 
+  const handleAskAI = (mistake: any) => {
+    const prompt = t("ask_ai_prompt", {
+      mistake: mistake.mistake_content || t("not_provided"),
+      analysis: mistake.analysis || t("not_provided"),
+      knowledgePoints: mistake.knowledge_points?.join(", ") || t("not_provided"),
+    });
+
+    sessionStorage.setItem("studify:ai-quick-qna-draft", prompt);
+    router.push(`/${locale}/home?ai=quick_qa#ai-assistant`);
+  };
+
   const getSourceTypeIcon = (sourceType: string) => {
     switch (sourceType) {
       case "quiz":
@@ -286,7 +303,7 @@ export default function MistakeBookPageContent() {
   }
 
   return (
-    <div className="min-h-screen p-6 relative">
+    <div className="relative min-h-screen bg-background p-6 text-foreground">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <motion.div
@@ -322,25 +339,25 @@ export default function MistakeBookPageContent() {
               <DialogTrigger asChild>
                 <Button
                   id="create-button"
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  className="bg-orange-500 text-white hover:bg-orange-600"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   {t("create_mistake")}
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl bg-gray-900/95 border-white/10">
+              <DialogContent className="max-w-2xl border-border bg-card text-card-foreground">
                 <DialogHeader>
-                  <DialogTitle className="text-gray-900 dark:text-white text-xl">
+                  <DialogTitle className="text-xl text-foreground">
                     {t("create_mistake")}
                   </DialogTitle>
-                  <DialogDescription className="text-gray-600 dark:text-white/60">
+                  <DialogDescription className="text-muted-foreground">
                     {t("track_mistakes")}
                   </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="source-type" className="text-gray-900 dark:text-white">
+                    <Label htmlFor="source-type">
                       {t("source_type")}
                     </Label>
                     <Select
@@ -349,10 +366,10 @@ export default function MistakeBookPageContent() {
                         setNewMistake((prev) => ({ ...prev, sourceType: value }))
                       }
                     >
-                      <SelectTrigger className="bg-white/5 border-white/10 text-gray-900 dark:text-white">
+                      <SelectTrigger className="border-input bg-background text-foreground">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-gray-900 border-white/10">
+                      <SelectContent>
                         <SelectItem value="manual">{t("manual")}</SelectItem>
                         <SelectItem value="quiz">{t("quiz")}</SelectItem>
                         <SelectItem value="assignment">
@@ -363,7 +380,7 @@ export default function MistakeBookPageContent() {
                   </div>
 
                   <div>
-                    <Label htmlFor="mistake-content" className="text-gray-900 dark:text-white">
+                    <Label htmlFor="mistake-content">
                       {t("mistake_content")}
                     </Label>
                     <Textarea
@@ -377,12 +394,12 @@ export default function MistakeBookPageContent() {
                         }))
                       }
                       rows={4}
-                      className="bg-white/5 border-white/10 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/40"
+                      className="border-input bg-background text-foreground placeholder:text-muted-foreground"
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="analysis" className="text-gray-900 dark:text-white">
+                    <Label htmlFor="analysis">
                       {t("analysis")}
                     </Label>
                     <Textarea
@@ -396,12 +413,12 @@ export default function MistakeBookPageContent() {
                         }))
                       }
                       rows={3}
-                      className="bg-white/5 border-white/10 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/40"
+                      className="border-input bg-background text-foreground placeholder:text-muted-foreground"
                     />
                   </div>
 
                   <div>
-                    <Label className="text-gray-900 dark:text-white">{t("knowledge_points")}</Label>
+                    <Label>{t("knowledge_points")}</Label>
                     <div className="flex flex-wrap gap-2 mt-2 mb-3">
                       {newMistake.knowledgePoints.map((point, index) => (
                         <Badge
@@ -427,13 +444,13 @@ export default function MistakeBookPageContent() {
                             addKnowledgePoint();
                           }
                         }}
-                        className="bg-white/5 border-white/10 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/40"
+                        className="border-input bg-background text-foreground placeholder:text-muted-foreground"
                       />
                       <Button
                         type="button"
                         variant="outline"
                         onClick={addKnowledgePoint}
-                        className="border-white/10 hover:bg-white/5"
+                        className="border-border hover:bg-muted"
                       >
                         {t("add")}
                       </Button>
@@ -445,7 +462,7 @@ export default function MistakeBookPageContent() {
                   <Button
                     variant="outline"
                     onClick={() => setIsCreateDialogOpen(false)}
-                    className="border-white/10 hover:bg-white/5"
+                    className="border-border hover:bg-muted"
                   >
                     {t("cancel")}
                   </Button>
@@ -454,7 +471,7 @@ export default function MistakeBookPageContent() {
                     disabled={
                       !newMistake.mistakeContent.trim() || saveMistake.isPending
                     }
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    className="bg-orange-500 text-white hover:bg-orange-600"
                   >
                     {saveMistake.isPending
                       ? t("create") + "..."
@@ -474,7 +491,7 @@ export default function MistakeBookPageContent() {
           transition={{ delay: 0.1 }}
           className="grid grid-cols-1 md:grid-cols-4 gap-6"
         >
-          <Card className="bg-gradient-to-br from-red-600/20 to-orange-600/20 border-red-500/30 backdrop-blur-sm">
+          <Card className="border-border bg-card text-card-foreground">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -490,7 +507,7 @@ export default function MistakeBookPageContent() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-blue-600/20 to-cyan-600/20 border-blue-500/30 backdrop-blur-sm">
+          <Card className="border-border bg-card text-card-foreground">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -509,7 +526,7 @@ export default function MistakeBookPageContent() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-600/20 to-emerald-600/20 border-green-500/30 backdrop-blur-sm">
+          <Card className="border-border bg-card text-card-foreground">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -529,7 +546,7 @@ export default function MistakeBookPageContent() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-600/20 to-pink-600/20 border-purple-500/30 backdrop-blur-sm">
+          <Card className="border-border bg-card text-card-foreground">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -553,7 +570,7 @@ export default function MistakeBookPageContent() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+          <Card className="border-border bg-card text-card-foreground">
             <CardContent className="pt-6">
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1 relative">
@@ -562,7 +579,7 @@ export default function MistakeBookPageContent() {
                     placeholder={t("search_content_analysis_knowledge")}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-white/5 border-white/10 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/40"
+                    className="border-input bg-background pl-10 text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
 
@@ -570,11 +587,11 @@ export default function MistakeBookPageContent() {
                   value={selectedSourceType}
                   onValueChange={setSelectedSourceType}
                 >
-                  <SelectTrigger className="w-full md:w-[200px] bg-white/5 border-white/10 text-gray-900 dark:text-white">
+                  <SelectTrigger className="w-full border-input bg-background text-foreground md:w-[200px]">
                     <Filter className="h-4 w-4 mr-2" />
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-900 border-white/10">
+                  <SelectContent>
                     <SelectItem value="all">{t("all_types")}</SelectItem>
                     <SelectItem value="quiz">{t("quiz")}</SelectItem>
                     <SelectItem value="assignment">
@@ -588,11 +605,11 @@ export default function MistakeBookPageContent() {
                   value={selectedKnowledgePoint}
                   onValueChange={setSelectedKnowledgePoint}
                 >
-                  <SelectTrigger className="w-full md:w-[200px] bg-white/5 border-white/10 text-gray-900 dark:text-white">
+                  <SelectTrigger className="w-full border-input bg-background text-foreground md:w-[200px]">
                     <Tag className="h-4 w-4 mr-2" />
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-900 border-white/10">
+                  <SelectContent>
                     <SelectItem value="all">
                       {t("all_knowledge_points")}
                     </SelectItem>
@@ -622,7 +639,7 @@ export default function MistakeBookPageContent() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
               >
-                <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+                <Card className="border-border bg-card text-card-foreground">
                   <CardContent className="pt-6">
                     <div className="text-center py-12">
                       <BookOpen className="h-16 w-16 text-gray-400 dark:text-white/30 mx-auto mb-4" />
@@ -634,7 +651,7 @@ export default function MistakeBookPageContent() {
                       </p>
                       <Button
                         onClick={() => setIsCreateDialogOpen(true)}
-                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                        className="bg-orange-500 text-white hover:bg-orange-600"
                       >
                         <Plus className="h-4 w-4 mr-2" />
                         {t("add_first_mistake")}
@@ -652,7 +669,7 @@ export default function MistakeBookPageContent() {
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  <Card className="bg-white/5 backdrop-blur-sm border-white/10 hover:bg-white/10 transition-all duration-300 group">
+                  <Card className="group border-border bg-card text-card-foreground transition-all duration-300 hover:border-orange-500/30 hover:shadow-md">
                     <CardContent className="pt-6">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 space-y-4">
@@ -679,15 +696,29 @@ export default function MistakeBookPageContent() {
                           <div className="space-y-2">
                             <div className="flex items-start gap-2">
                               <Target className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
-                              <div>
+                              <div className="min-w-0 flex-1">
                                 <h4 className="font-medium text-gray-800 dark:text-white/90 mb-1">
                                   {t("mistake_content_label")}
                                 </h4>
-                                <p className="text-gray-700 dark:text-white/70 leading-relaxed">
-                                  {mistake.mistake_content}
-                                </p>
+                                <div className="prose prose-sm max-w-none text-muted-foreground dark:prose-invert">
+                                  <ReactMarkdown>{mistake.mistake_content || ""}</ReactMarkdown>
+                                </div>
                               </div>
                             </div>
+
+                            {mistake.analysis && (
+                              <div className="flex items-start gap-2">
+                                <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+                                <div className="min-w-0 flex-1">
+                                  <h4 className="mb-1 font-medium text-foreground">
+                                    {t("error_analysis_label")}
+                                  </h4>
+                                  <div className="prose prose-sm max-w-none text-muted-foreground dark:prose-invert">
+                                    <ReactMarkdown>{mistake.analysis}</ReactMarkdown>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
 
                             {/* Knowledge Points */}
                             {mistake.knowledge_points &&
@@ -722,7 +753,15 @@ export default function MistakeBookPageContent() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex shrink-0 flex-col gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleAskAI(mistake)}
+                            className="bg-orange-500 text-white hover:bg-orange-600"
+                          >
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            {t("ask_ai")}
+                          </Button>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -744,11 +783,11 @@ export default function MistakeBookPageContent() {
 
       {/* User Guide Dialog */}
       <Dialog open={showGuide} onOpenChange={setShowGuide}>
-        <DialogContent className="max-w-2xl bg-gradient-to-br from-gray-900 via-gray-900 to-purple-900/30 border-white/20">
+        <DialogContent className="max-w-2xl border-border bg-card text-card-foreground">
           <DialogHeader>
             <DialogTitle className="text-2xl text-gray-900 dark:text-white flex items-center gap-3">
               {React.createElement(GUIDE_STEPS[currentGuideStep].icon, {
-                className: "h-7 w-7 text-purple-400",
+                className: "h-7 w-7 text-orange-500",
               })}
               {GUIDE_STEPS[currentGuideStep].title}
             </DialogTitle>
@@ -764,17 +803,17 @@ export default function MistakeBookPageContent() {
                 <div
                   key={index}
                   className={`h-2 rounded-full transition-all duration-300 ${index === currentGuideStep
-                    ? "w-8 bg-purple-500"
+                    ? "w-8 bg-orange-500"
                     : index < currentGuideStep
-                      ? "w-2 bg-purple-500/50"
-                      : "w-2 bg-white/20"
+                      ? "w-2 bg-orange-500/50"
+                      : "w-2 bg-muted"
                     }`}
                 />
               ))}
             </div>
 
             {/* Step Content */}
-            <div className="bg-white/5 rounded-lg p-6 border border-white/10">
+            <div className="rounded-lg border border-border bg-muted/30 p-6">
               {currentGuideStep === 0 && (
                 <div className="space-y-4">
                   <div className="flex items-start gap-3">
@@ -809,7 +848,7 @@ export default function MistakeBookPageContent() {
 
               {currentGuideStep === 1 && (
                 <div className="space-y-4">
-                  <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg p-4 border border-blue-500/30">
+                  <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 p-4">
                     <h4 className="font-medium text-gray-900 dark:text-white mb-2">
                       {t("guide_create_ways_title")}
                     </h4>
@@ -828,7 +867,7 @@ export default function MistakeBookPageContent() {
                       </li>
                     </ul>
                   </div>
-                  <p className="text-white/60 text-sm">
+                  <p className="text-sm text-muted-foreground">
                     {t("guide_create_tip")}
                   </p>
                 </div>
@@ -837,17 +876,17 @@ export default function MistakeBookPageContent() {
               {currentGuideStep === 2 && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                    <div className="rounded-lg border border-border bg-card p-4">
                       <Search className="h-5 w-5 text-blue-400 mb-2" />
-                      <h4 className="font-medium text-white mb-1">{t("guide_search_feature")}</h4>
-                      <p className="text-white/60 text-sm">
+                      <h4 className="mb-1 font-medium text-foreground">{t("guide_search_feature")}</h4>
+                      <p className="text-sm text-muted-foreground">
                         {t("guide_search_feature_desc")}
                       </p>
                     </div>
-                    <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                    <div className="rounded-lg border border-border bg-card p-4">
                       <Filter className="h-5 w-5 text-purple-400 mb-2" />
-                      <h4 className="font-medium text-white mb-1">{t("guide_filter_feature")}</h4>
-                      <p className="text-white/60 text-sm">
+                      <h4 className="mb-1 font-medium text-foreground">{t("guide_filter_feature")}</h4>
+                      <p className="text-sm text-muted-foreground">
                         {t("guide_filter_feature_desc")}
                       </p>
                     </div>
@@ -860,19 +899,19 @@ export default function MistakeBookPageContent() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-lg p-4 border border-red-500/30">
                       <AlertCircle className="h-6 w-6 text-red-400 mb-2" />
-                      <p className="text-sm text-white/70">错题总数</p>
+                      <p className="text-sm text-muted-foreground">{t("total_mistakes")}</p>
                     </div>
                     <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-lg p-4 border border-blue-500/30">
                       <Brain className="h-6 w-6 text-blue-400 mb-2" />
-                      <p className="text-sm text-white/70">测验错题</p>
+                      <p className="text-sm text-muted-foreground">{t("quiz_mistakes")}</p>
                     </div>
                     <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-lg p-4 border border-green-500/30">
                       <FileText className="h-6 w-6 text-green-400 mb-2" />
-                      <p className="text-sm text-white/70">作业错题</p>
+                      <p className="text-sm text-muted-foreground">{t("assignment_mistakes")}</p>
                     </div>
                     <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg p-4 border border-purple-500/30">
                       <Tag className="h-6 w-6 text-purple-400 mb-2" />
-                      <p className="text-sm text-white/70">知识点数</p>
+                      <p className="text-sm text-muted-foreground">{t("knowledge_point_count")}</p>
                     </div>
                   </div>
                 </div>
@@ -883,14 +922,14 @@ export default function MistakeBookPageContent() {
                   <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 mb-4">
                     <CheckCircle2 className="h-8 w-8 text-green-400" />
                   </div>
-                  <h3 className="text-xl font-medium text-white mb-2">
+                  <h3 className="mb-2 text-xl font-medium text-foreground">
                     {t("guide_ready_title")}
                   </h3>
-                  <p className="text-white/70 mb-4">
+                  <p className="mb-4 text-muted-foreground">
                     {t("guide_ready_desc")}
                   </p>
-                  <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg p-4 border border-blue-500/30">
-                    <p className="text-white/80 text-sm">
+                  <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 p-4">
+                    <p className="text-sm text-foreground/80">
                       {t("guide_tip")}
                     </p>
                   </div>
@@ -903,7 +942,7 @@ export default function MistakeBookPageContent() {
             <Button
               variant="ghost"
               onClick={handleGuideSkip}
-              className="text-white/60 hover:text-white hover:bg-white/10"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               {t("guide_skip")}
             </Button>
@@ -912,14 +951,14 @@ export default function MistakeBookPageContent() {
                 <Button
                   variant="outline"
                   onClick={() => setCurrentGuideStep(currentGuideStep - 1)}
-                  className="border-white/20 hover:bg-white/10"
+                  className="border-border hover:bg-muted"
                 >
                   {t("guide_previous")}
                 </Button>
               )}
               <Button
                 onClick={handleGuideNext}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                className="bg-orange-500 text-white hover:bg-orange-600"
               >
                 {currentGuideStep === GUIDE_STEPS.length - 1 ? (
                   t("guide_start_using")

@@ -50,7 +50,7 @@ function ChatMessages() {
             </Avatar>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm font-medium text-foreground">
                   {message.userName}
                 </span>
                 <span className="text-xs text-gray-500">
@@ -62,7 +62,7 @@ function ChatMessages() {
               ) : message.type === 'system' ? (
                 <div className="text-sm text-gray-500 italic">{message.text}</div>
               ) : (
-                <div className="text-sm text-gray-700 break-words">
+                <div className="break-words text-sm text-foreground/90">
                   {message.text}
                 </div>
               )}
@@ -131,10 +131,10 @@ function ChatInput() {
   };
 
   return (
-    <div className="p-4 border-t bg-gray-50">
+    <div className="border-t border-border bg-muted/30 p-4">
       {/* Quick reactions */}
       {showReactions && (
-        <div className="mb-3 p-2 bg-white rounded-lg border shadow-sm">
+        <div className="mb-3 rounded-lg border border-border bg-card p-2 text-card-foreground shadow-sm">
           <div className="flex gap-2 flex-wrap">
             {REACTIONS.map((reaction, index) => (
               <Button
@@ -142,7 +142,7 @@ function ChatInput() {
                 variant="ghost"
                 size="sm"
                 onClick={() => handleReaction(reaction.emoji)}
-                className="text-lg hover:bg-gray-100"
+                className="text-lg hover:bg-muted"
                 title={reaction.label}
               >
                 {reaction.emoji}

@@ -17,7 +17,7 @@ export default function Filters({ filter, setFilter }: FiltersProps) {
   };
   
   return (
-    <div className="mb-6 flex border-b border-gray-200">
+    <div className="mb-6 flex border-b border-border">
       {["all", "unlocked", "locked"].map((f) => (
         <button
           key={f}
@@ -25,7 +25,7 @@ export default function Filters({ filter, setFilter }: FiltersProps) {
           className={`px-4 py-2 text-sm font-medium ${
             filter === f
               ? "border-b-2 border-blue-600 text-blue-600"
-              : "text-gray-500 hover:text-gray-700"
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
           {filterLabels[f as keyof typeof filterLabels]}

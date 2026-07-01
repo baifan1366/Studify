@@ -83,7 +83,7 @@ export default function CommunityContent() {
 
   return (
     <>
-      <div className="flex h-full" style={{ backgroundColor: 'var(--background-color, #FDF5E6)' }}>
+      <div className="flex h-full bg-background text-foreground">
         {/* Main Feed */}
         <div className="flex-1 min-w-0 p-6 overflow-y-auto max-w-4xl mx-auto">
           <div className="max-w-full">
@@ -187,7 +187,7 @@ export default function CommunityContent() {
         </div>
 
         {/* Sidebar */}
-        <div className="w-96 flex-shrink-0 p-6 border-l border-gray-200 dark:border-gray-700 overflow-y-auto" style={{ backgroundColor: 'var(--background-color, #FDF5E6)' }}>
+        <div className="w-96 flex-shrink-0 overflow-y-auto border-l border-border bg-background p-6">
           <CommunitySidebar />
         </div>
       </div>

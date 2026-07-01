@@ -313,7 +313,7 @@ export function SubmissionDialog({
                   {existingSubmission.feedback && (
                     <div>
                       <Label className="text-sm font-medium">Instructor Feedback</Label>
-                      <div className="mt-1 p-3 bg-gray-50 rounded-md">
+                      <div className="mt-1 rounded-md bg-muted p-3">
                         <p className="text-sm">{existingSubmission.feedback}</p>
                       </div>
                     </div>
@@ -393,7 +393,7 @@ export function SubmissionDialog({
                             <Upload className="h-4 w-4" />
                             Uploading... {uploadProgress}%
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="h-2 w-full rounded-full bg-muted">
                             <div 
                               className="bg-blue-500 h-2 rounded-full transition-all"
                               style={{ width: `${uploadProgress}%` }}
@@ -448,7 +448,7 @@ export function SubmissionDialog({
                       )}
 
                       {attachments.length === 0 && (
-                        <div className="text-center py-4 text-muted-foreground text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                        <div className="rounded-lg border-2 border-dashed border-border py-4 text-center text-sm text-muted-foreground">
                           {hasSubmitted 
                             ? "No files currently attached. Add files to include with your resubmission."
                             : "No files attached. Click \"Add Files\" to upload documents, images, or other files."
@@ -458,8 +458,8 @@ export function SubmissionDialog({
 
                       {/* Resubmission notice */}
                       {hasSubmitted && attachments.length > 0 && (
-                        <div className="mt-2 p-2 bg-blue-50 rounded-md border border-blue-200">
-                          <p className="text-xs text-blue-700">
+                        <div className="mt-2 rounded-md border border-blue-500/30 bg-blue-500/10 p-2">
+                          <p className="text-xs text-blue-700 dark:text-blue-300">
                             💡 Resubmitting will update your submission with these {attachments.length} file{attachments.length !== 1 ? 's' : ''}. 
                             You can add new files or remove existing ones before resubmitting.
                           </p>

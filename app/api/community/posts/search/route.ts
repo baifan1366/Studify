@@ -62,11 +62,12 @@ export async function GET(
       .in("post_id", postIds);
 
     // 获取 comment counts
-    const { data: commentCounts } = await supabase
+    const { data: postComments } = await supabase
       .from("community_comment")
-      .select("post_id")
+      .select("id, public_id, post_id, author_id, parent_id, body, created_at, author:profiles ( display_name, avatar_url )")
       .in("post_id", postIds)
-      .eq("is_deleted", false);
+      .eq("is_deleted", false)
+      .order("created_at", { ascending: false });
 
     // 获取 post files
     const postPublicIds = accessiblePosts.map((p) => p.public_id);
@@ -94,7 +95,9 @@ export async function GET(
       );
 
       const comments_count =
-        commentCounts?.filter((c) => c.post_id === post.id).length || 0;
+        postComments?.filter((c) => c.post_id === post.id).length || 0;
+      const preview_comments =
+        postComments?.filter((c) => c.post_id === post.id && !c.parent_id).slice(0, 2) || [];
 
       // author 取第一个
       const authorObj = Array.isArray(post.author)
@@ -119,6 +122,7 @@ export async function GET(
         group: groupObj, // ✅ 单个对象，匹配 interface
         reactions: reactionCounts,
         comments_count,
+        preview_comments,
         files: files,
         hashtags: hashtags,
       };

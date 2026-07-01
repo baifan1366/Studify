@@ -14,6 +14,22 @@ export interface Hashtag {
   name: string;
 }
 
+export interface PostPreviewComment {
+  id: number;
+  public_id: string;
+  post_id: number;
+  author_id: number;
+  body: string;
+  created_at: Date;
+  author?: {
+    display_name: string;
+    avatar_url?: string;
+  } | Array<{
+    display_name: string;
+    avatar_url?: string;
+  }>;
+}
+
 export interface Post {
   id: number;
   public_id: string;
@@ -51,6 +67,9 @@ export interface Post {
 
   // 评论数量（列表页更常用）
   comments_count?: number;
+
+  // Recent top-level comments shown on post cards
+  preview_comments?: PostPreviewComment[];
 
   // 表情/点赞数据（key: emoji, value: count）
   reactions?: Record<string, number>;

@@ -104,7 +104,7 @@ export function LearningPathPage() {
         
         <TabsContent value="stats" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-6 border rounded-lg bg-white shadow-sm">
+            <div className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm">
               <h3 className="text-lg font-semibold mb-2">完成里程碑</h3>
               <p className="text-3xl font-bold">
                 {learningPath ? learningPath.milestones.filter(m => m.status === 'completed').length : 0}
@@ -112,16 +112,16 @@ export function LearningPathPage() {
               </p>
             </div>
             
-            <div className="p-6 border rounded-lg bg-white shadow-sm">
+            <div className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm">
               <h3 className="text-lg font-semibold mb-2">总体进度</h3>
               <p className="text-3xl font-bold">
                 {learningPath ? Math.round(learningPath.progress) : 0}%
               </p>
             </div>
             
-            <div className="p-6 border rounded-lg bg-white shadow-sm">
+            <div className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm">
               <h3 className="text-lg font-semibold mb-2">学习目标</h3>
-              <p className="text-gray-700">
+              <p className="text-foreground">
                 {learningPath ? learningPath.goal : '暂无学习目标'}
               </p>
             </div>

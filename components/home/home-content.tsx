@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import HeroSection from "@/components/home/hero-section";
 import ShowHeroButton from "@/components/home/show-hero-button";
@@ -27,7 +27,23 @@ import {
 export default function HomeContent() {
   const t = useTranslations("HomeContent");
   const router = useRouter();
+  const searchParams = useSearchParams();
   const locale = useLocale();
+  const [aiDraft, setAiDraft] = useState("");
+  const openQuickQna = searchParams.get("ai") === "quick_qa";
+
+  useEffect(() => {
+    if (!openQuickQna) return;
+
+    setAiDraft(sessionStorage.getItem("studify:ai-quick-qna-draft") || "");
+    sessionStorage.removeItem("studify:ai-quick-qna-draft");
+    requestAnimationFrame(() => {
+      document.getElementById("ai-assistant")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }, [openQuickQna]);
 
   const { data: user, isLoading } = useUser();
   const { data: learningStats, isLoading: statsLoading } = useLearningStats("week");
@@ -202,7 +218,13 @@ export default function HomeContent() {
         />
 
         {/* AI Learning Assistant Preview */}
-        <AIAssistantPreview onExperienceAI={handleExperienceAI} />
+        <div id="ai-assistant" className="scroll-mt-6">
+          <AIAssistantPreview
+            onExperienceAI={handleExperienceAI}
+            initialFeature={openQuickQna ? "quick_qa" : null}
+            initialQuestion={aiDraft}
+          />
+        </div>
 
         {/* Community Highlights */}
         <CommunityHighlights

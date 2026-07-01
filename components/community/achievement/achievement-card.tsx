@@ -18,12 +18,12 @@ export default function AchievementCard({ achievement }: Props) {
   return (
     <div
       key={achievement.id}
-      className={`bg-white rounded-xl border border-gray-200 p-5 transition-shadow duration-300 hover:shadow-lg`}
+      className="rounded-xl border border-border bg-card p-5 text-card-foreground transition-shadow duration-300 hover:shadow-lg"
     >
       <div className="flex flex-col items-center text-center">
         <div
           className={`relative w-24 h-24 flex items-center justify-center rounded-full mb-4 ${
-            achievement.unlocked ? "bg-yellow-100" : "bg-gray-100"
+            achievement.unlocked ? "bg-yellow-100 dark:bg-yellow-500/15" : "bg-muted"
           }`}
         >
           {achievement.unlocked ? (
@@ -38,7 +38,7 @@ export default function AchievementCard({ achievement }: Props) {
 
         <h3
           className={`font-bold text-lg ${
-            achievement.unlocked ? "text-gray-900" : "text-gray-500"
+            achievement.unlocked ? "text-foreground" : "text-muted-foreground"
           }`}
         >
           {achievement.name}
@@ -46,7 +46,7 @@ export default function AchievementCard({ achievement }: Props) {
 
         <p
           className={`text-sm mt-1 ${
-            achievement.unlocked ? "text-gray-600" : "text-gray-400"
+            achievement.unlocked ? "text-muted-foreground" : "text-muted-foreground/70"
           }`}
         >
           {achievement.description}
@@ -55,13 +55,13 @@ export default function AchievementCard({ achievement }: Props) {
         {/* Progress bar */}
         {!achievement.unlocked && (
           <div className="w-full mt-4">
-            <div className="w-full bg-gray-200 rounded-full h-3">
+            <div className="h-3 w-full rounded-full bg-muted">
               <div
                 className="bg-yellow-400 h-3 rounded-full transition-all duration-300"
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="mt-1 text-xs text-muted-foreground">
               {currentValue}/{minValue}
             </p>
           </div>
@@ -69,7 +69,7 @@ export default function AchievementCard({ achievement }: Props) {
 
         {/* Unlock time */}
         {achievement.unlocked && achievement.unlocked_at && (
-          <p className="text-xs text-gray-400 mt-3">
+          <p className="mt-3 text-xs text-muted-foreground">
             {t('earned_on')} {achievement.unlocked_at}
           </p>
         )}

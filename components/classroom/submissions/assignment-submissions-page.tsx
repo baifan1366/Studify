@@ -131,7 +131,7 @@ export function AssignmentSubmissionsPageComponent({
         <div className="text-center space-y-4">
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto" />
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Assignment</h2>
+            <h2 className="mb-2 text-2xl font-bold text-foreground">Error Loading Assignment</h2>
             <p className="text-gray-600 mb-4">{error}</p>
             <div className="flex gap-2 justify-center">
               <Button variant="outline" onClick={handleBack}>
@@ -154,7 +154,7 @@ export function AssignmentSubmissionsPageComponent({
         <div className="text-center space-y-4">
           <AlertCircle className="h-12 w-12 text-gray-500 mx-auto" />
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Assignment Not Found</h2>
+            <h2 className="mb-2 text-2xl font-bold text-foreground">Assignment Not Found</h2>
             <p className="text-gray-600 mb-4">The requested assignment could not be found.</p>
             <Button variant="outline" onClick={handleBack}>
               <ArrowLeft className="h-4 w-4 mr-2" />

@@ -84,13 +84,12 @@ export function WhiteboardPanel({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="w-full backdrop-blur-sm border-l border-gray-200 dark:border-gray-700/50 flex flex-col"
+          className="flex w-full flex-col border-l border-border bg-background/95 backdrop-blur-sm"
           style={{
             minWidth: '200px',
             maxWidth: '600px',
             width: '100%',
-            height: '635px',
-            backgroundColor: 'var(--background-color, #FDF5E6)'
+            height: '635px'
           }}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}

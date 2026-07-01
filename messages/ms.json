@@ -8958,7 +8958,10 @@
     "save_error_desc": "An error occurred while saving the mistake, please try again later",
     "delete_success_desc": "Mistake successfully deleted",
     "delete_error": "Delete Failed",
-    "delete_error_desc": "An error occurred while deleting the mistake, please try again later"
+    "delete_error_desc": "An error occurred while deleting the mistake, please try again later",
+    "ask_ai": "Ask AI",
+    "not_provided": "Not provided",
+    "ask_ai_prompt": "Help me understand and correct this mistake. Explain the underlying concept clearly, identify why the mistake may have happened, and guide me through the correct reasoning.\n\n## Mistake\n{mistake}\n\n## Existing analysis\n{analysis}\n\n## Knowledge points\n{knowledgePoints}"
   },
   "WhiteboardDebugPanel": {
     "debug_panel": "Whiteboard Debug Panel",

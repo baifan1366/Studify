@@ -20,6 +20,7 @@ import {
   UploadCloud,
   Pencil,
   Send,
+  ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 import { Post, PostFile } from "@/interface/community/post-interface";
@@ -855,7 +856,16 @@ const PostDetailContent = ({
   }
 
   return (
-    <Card className="bg-white/5 backdrop-blur-lg border border-white/10 text-white rounded-xl shadow-lg">
+    <div className="space-y-4">
+      {groupPath && (
+        <Button asChild variant="ghost" className="gap-2">
+          <Link href={groupPath}>
+            <ArrowLeft className="h-4 w-4" />
+            Back to Community
+          </Link>
+        </Button>
+      )}
+      <Card className="bg-white/5 backdrop-blur-lg border border-white/10 text-white rounded-xl shadow-lg">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
@@ -1121,7 +1131,8 @@ const PostDetailContent = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+      </Card>
+    </div>
   );
 };
 

@@ -86,9 +86,9 @@ export default function WhiteboardPage({ classroomSlug }: WhiteboardPageProps) {
   const isSessionActive = selectedSession?.status === 'live';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="border-b border-border bg-card text-card-foreground">
         <div className="max-w-full mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -97,7 +97,7 @@ export default function WhiteboardPage({ classroomSlug }: WhiteboardPageProps) {
                 Back to Classroom
               </Button>
               
-              <div className="h-6 w-px bg-gray-300" />
+              <div className="h-6 w-px bg-border" />
               
               <div>
                 <h1 className="text-xl font-semibold">{classroom?.title || 'Classroom'}</h1>
@@ -135,7 +135,7 @@ export default function WhiteboardPage({ classroomSlug }: WhiteboardPageProps) {
 
               {/* Session Status */}
               {selectedSession && (
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100">
+                <div className="flex items-center gap-2 rounded-full bg-muted px-3 py-1">
                   {isSessionActive ? (
                     <>
                       <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />

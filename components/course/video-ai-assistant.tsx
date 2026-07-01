@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import {
   Send,
@@ -21,6 +22,10 @@ import {
   type LucideIcon,
   History,
   ListVideo,
+  Maximize2,
+  Minimize2,
+  MessageSquarePlus,
+  GripHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +38,10 @@ import { AIMarkdownMessage } from "@/components/video/ai-markdown-message";
 import { VideoQAHistoryDialog } from "@/components/video/video-qa-history-dialog";
 import { VideoTranscriptList } from "@/components/video/video-transcript-list";
 import { VideoLearningArtifacts } from "@/components/video/video-learning-artifacts";
+import {
+  useVideoQAHistory,
+  type VideoHistoryItem,
+} from "@/hooks/video/use-video-learning-data";
 
 interface AIMessage {
   role: "user" | "assistant";
@@ -87,11 +96,34 @@ export default function VideoAIAssistant({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [view, setView] = useState<"chat" | "transcript">("chat");
   const [queuedQuestions, setQueuedQuestions] = useState<string[]>([]);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [panelHeight, setPanelHeight] = useState(620);
+  const [mounted, setMounted] = useState(false);
   const wasLoadingRef = useRef(false);
   const { toast } = useToast();
   const t = useTranslations("VideoAIAssistant");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const { data: historyData, isLoading: historyLoading } = useVideoQAHistory(
+    currentLessonId || undefined,
+    isExpanded
+  );
+
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (!isExpanded) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsExpanded(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isExpanded]);
 
   const videoContext = {
     courseSlug,
@@ -444,6 +476,48 @@ export default function VideoAIAssistant({
     setTimeout(() => handleAskQuestion(presetQuestion), 100);
   };
 
+  const openHistoryItem = (item: VideoHistoryItem) => {
+    const sources = !Array.isArray(item.context_segments)
+      ? (item.context_segments?.sources as AISource[] | undefined)
+      : undefined;
+    const timestamp = new Date(item.created_at).getTime();
+    setView("chat");
+    setConversation([
+      { role: "user", content: item.question, timestamp },
+      {
+        role: "assistant",
+        content: item.answer,
+        timestamp: timestamp + 1,
+        sources,
+        confidence: 0.85,
+      },
+    ]);
+  };
+
+  const startNewConversation = () => {
+    setConversation([]);
+    setQuestion("");
+    setView("chat");
+  };
+
+  const startResizing = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    const startY = event.clientY;
+    const startHeight = panelHeight;
+    const onMove = (moveEvent: PointerEvent) => {
+      const viewportLimit = Math.max(520, window.innerHeight - 80);
+      setPanelHeight(
+        Math.min(viewportLimit, Math.max(520, startHeight + moveEvent.clientY - startY))
+      );
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
   useEffect(() => {
     if (wasLoadingRef.current && !isLoading && queuedQuestions.length > 0) {
       const [next, ...rest] = queuedQuestions;
@@ -453,8 +527,57 @@ export default function VideoAIAssistant({
     wasLoadingRef.current = isLoading;
   }, [isLoading, queuedQuestions]);
 
-  return (
-    <div className="flex flex-col h-full max-h-96">
+  const panel = (
+    <div
+      className={
+        isExpanded
+          ? "fixed inset-3 z-[100] flex overflow-hidden rounded-2xl border border-border bg-background shadow-2xl sm:inset-6"
+          : "relative flex w-full overflow-hidden rounded-xl border border-border bg-background"
+      }
+      style={isExpanded ? undefined : { height: panelHeight }}
+    >
+      {isExpanded && (
+        <aside className="hidden w-72 shrink-0 flex-col border-r border-border bg-muted/30 md:flex">
+          <div className="border-b border-border p-4">
+            <Button className="w-full justify-start gap-2" onClick={startNewConversation}>
+              <MessageSquarePlus className="h-4 w-4" />
+              New chat
+            </Button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Previous chats
+            </p>
+            {historyLoading ? (
+              <Loader2 className="mx-auto my-8 h-5 w-5 animate-spin text-muted-foreground" />
+            ) : (
+              <div className="space-y-1.5">
+                {(historyData?.history ?? []).map((item) => (
+                  <button
+                    key={item.public_id}
+                    onClick={() => openHistoryItem(item)}
+                    className="w-full rounded-lg border border-transparent px-3 py-2.5 text-left transition-colors hover:border-border hover:bg-background"
+                  >
+                    <p className="line-clamp-1 text-sm font-medium">{item.question}</p>
+                    <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                      {item.answer}
+                    </p>
+                    <p className="mt-1.5 text-[10px] text-muted-foreground">
+                      {new Date(item.created_at).toLocaleString()}
+                    </p>
+                  </button>
+                ))}
+                {!historyData?.history?.length && (
+                  <p className="px-3 py-8 text-center text-sm text-muted-foreground">
+                    No saved conversations yet.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </aside>
+      )}
+      <div className="flex min-w-0 flex-1 flex-col">
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center space-x-2">
@@ -472,6 +595,14 @@ export default function VideoAIAssistant({
         <div className="flex items-center space-x-2">
           <button onClick={() => setView((value) => value === "chat" ? "transcript" : "chat")} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Toggle transcript"><ListVideo size={16} /></button>
           <button onClick={() => setHistoryOpen(true)} disabled={!currentLessonId} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-40 dark:hover:bg-gray-800" aria-label="Open chat history"><History size={16} /></button>
+          <button
+            onClick={() => setIsExpanded((value) => !value)}
+            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+            aria-label={isExpanded ? "Exit expanded view" : "Expand AI assistant"}
+            title={isExpanded ? "Exit expanded view" : "Expand AI assistant"}
+          >
+            {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </button>
           {/* AI Mode Selector */}
           <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
             {aiModeOptions.map((option) => {
@@ -807,12 +938,7 @@ export default function VideoAIAssistant({
           open={historyOpen}
           onOpenChange={setHistoryOpen}
           onSelect={(item) => {
-            const sources = !Array.isArray(item.context_segments) ? item.context_segments?.sources as AISource[] | undefined : undefined;
-            setView("chat");
-            setConversation([
-              { role: "user", content: item.question, timestamp: new Date(item.created_at).getTime() },
-              { role: "assistant", content: item.answer, timestamp: new Date(item.created_at).getTime() + 1, sources, confidence: .85 },
-            ]);
+            openHistoryItem(item);
           }}
         />
       )}
@@ -859,6 +985,20 @@ export default function VideoAIAssistant({
             )}..."`}
         </div>
       </div>
+      </div>
+      {!isExpanded && (
+        <button
+          type="button"
+          onPointerDown={startResizing}
+          className="absolute inset-x-0 bottom-0 z-10 flex h-3 cursor-ns-resize items-center justify-center text-muted-foreground/50 transition-colors hover:bg-muted/60 hover:text-muted-foreground"
+          aria-label="Resize AI assistant"
+          title="Drag to resize"
+        >
+          <GripHorizontal className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
+
+  return isExpanded && mounted ? createPortal(panel, document.body) : panel;
 }

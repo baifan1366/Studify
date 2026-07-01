@@ -31,6 +31,7 @@ import {
   Upload,
   Clock,
   Maximize2,
+  Minimize2,
   Trash2,
   Plus,
   Zap,
@@ -72,11 +73,17 @@ import { AIMarkdownMessage } from '@/components/video/ai-markdown-message';
 
 interface AIAssistantPreviewProps {
   onExperienceAI?: () => void;
+  initialFeature?: string | null;
+  initialQuestion?: string;
 }
 
-export default function AIAssistantPreview({ onExperienceAI }: AIAssistantPreviewProps) {
+export default function AIAssistantPreview({
+  onExperienceAI,
+  initialFeature = null,
+  initialQuestion = "",
+}: AIAssistantPreviewProps) {
   const { toast } = useToast();
-  const [activeFeature, setActiveFeature] = useState<string | null>(null);
+  const [activeFeature, setActiveFeature] = useState<string | null>(initialFeature);
   const [aiResult, setAIResult] = useState<{type: string; data: any} | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -134,13 +141,19 @@ export default function AIAssistantPreview({ onExperienceAI }: AIAssistantPrevie
         setIsFullscreen(false);
       },
       onResult: (data: any) => setAIResult({type: activeFeature, data}),
-      onFullscreen: () => setIsFullscreen(true), // 传递全屏回调
+      onFullscreen: () => setIsFullscreen((fullscreen) => !fullscreen),
       isFullscreen
     };
 
     switch (activeFeature) {
       case 'quick_qa':
-        return <QuickQACard {...commonProps} onResult={(data) => setAIResult({type: 'quick_qa', data})} />;
+        return (
+          <QuickQACard
+            {...commonProps}
+            initialQuestion={initialQuestion}
+            onResult={(data) => setAIResult({type: 'quick_qa', data})}
+          />
+        );
       case 'solve_problem':
         return <SolveProblemCard {...commonProps} onResult={(data) => setAIResult({type: 'solve_problem', data})} />;
       case 'smart_notes':
@@ -802,14 +815,15 @@ function formatRelativeTime(dateString: string): string {
 }
 
 // 聊天室风格的 QuickQA 卡片
-function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: { 
+function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen, initialQuestion = "" }: {
   onClose: () => void; 
   onResult: (data: any) => void;
   onFullscreen?: () => void;
   isFullscreen?: boolean;
+  initialQuestion?: string;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [currentInput, setCurrentInput] = useState('');
+  const [currentInput, setCurrentInput] = useState(initialQuestion);
   const [isTyping, setIsTyping] = useState(false);
   const [aiMode, setAIMode] = useState<'fast' | 'thinking'>('fast');
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -828,6 +842,12 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (initialQuestion) {
+      setCurrentInput((current) => current || initialQuestion);
+    }
+  }, [initialQuestion]);
 
   // ✅ Use the centralized useUser hook instead of direct API call
   const { data: user } = useUser();
@@ -1171,9 +1191,33 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
                 <CardDescription className="text-slate-600 dark:text-slate-400 text-xs">{t('chat.quickqa.description')}</CardDescription>
               </div>
             </div>
-            <Button variant="ghost" onClick={onClose} className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white h-7 w-7 p-0">
-              <ArrowLeft className="h-3 w-3" />
-            </Button>
+            <div className="flex items-center gap-1">
+              {onFullscreen && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onFullscreen}
+                  className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white h-7 w-7 p-0"
+                  aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                  title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                >
+                  {isFullscreen ? (
+                    <Minimize2 className="h-3.5 w-3.5" />
+                  ) : (
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                onClick={isFullscreen && onFullscreen ? onFullscreen : onClose}
+                className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white h-7 w-7 p-0"
+                aria-label={isFullscreen ? 'Exit fullscreen' : 'Back to AI tools'}
+                title={isFullscreen ? 'Exit fullscreen' : 'Back to AI tools'}
+              >
+                <ArrowLeft className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
         </CardHeader>
 
@@ -1302,12 +1346,6 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen }: {
                 value={currentInput}
                 onChange={(e) => setCurrentInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                onFocus={() => {
-                  // 当用户点击输入框时，触发全屏
-                  if (!isFullscreen && onFullscreen) {
-                    onFullscreen();
-                  }
-                }}
                 placeholder={t('chat.input.placeholder')}
                 className="min-h-[36px] max-h-[120px] resize-none bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600/50 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 text-sm"
                 aria-label={t('chat.input.aria_label')}

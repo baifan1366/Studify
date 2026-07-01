@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Textarea } from "@/components/ui/textarea";
 import {
   MessageSquare,
   ThumbsUp,
@@ -18,12 +20,15 @@ import {
   Clock,
   Paperclip,
   Send,
+  Loader2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Post } from "@/interface/community/post-interface";
 import Link from "next/link";
 import ZoomImage from "@/components/image-zoom/ZoomImage";
+import MegaImage from "@/components/attachment/mega-blob-image";
 import { useToggleReaction } from "@/hooks/community/use-reactions";
+import { useCreateComment } from "@/hooks/community/use-comments";
 import SharePostDialog from "./share-post-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { toast } from 'sonner';
@@ -32,7 +37,10 @@ import { useUser } from "@/hooks/profile/use-user";
 export default function PostCard({ post }: { post: Post }) {
   const t = useTranslations("CommunityPostCard");
   const toggleReactionMutation = useToggleReaction(post.group?.slug || '', post.slug || '');
+  const createCommentMutation = useCreateComment(post.group?.slug || '', post.slug || '');
   const [showShareDialog, setShowShareDialog] = React.useState(false);
+  const [showCommentComposer, setShowCommentComposer] = React.useState(false);
+  const [commentBody, setCommentBody] = React.useState("");
   const { toast: toastHook } = useToast();
   const { data: currentUser } = useUser();
   const isTutor = currentUser?.profile?.role === 'tutor';
@@ -41,6 +49,18 @@ export default function PostCard({ post }: { post: Post }) {
   const hasGroup = post.group && post.group.slug;
   const groupPath = hasGroup && post.group ? (isTutor ? `/tutor/community/${post.group.slug}` : `/community/${post.group.slug}`) : null;
   const postPath = hasGroup && post.group ? (isTutor ? `/tutor/community/${post.group.slug}/posts/${post.slug}` : `/community/${post.group.slug}/posts/${post.slug}`) : null;
+
+  const handleCommentSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!post.group?.slug || !post.slug || !commentBody.trim()) return;
+
+    await createCommentMutation.mutateAsync({
+      groupSlug: post.group.slug,
+      postSlug: post.slug,
+      body: commentBody.trim(),
+    });
+    setCommentBody("");
+  };
 
   const handleReaction = (emoji: string) => {
     if (!post.group?.slug || !post.slug) {
@@ -55,8 +75,13 @@ export default function PostCard({ post }: { post: Post }) {
       target_type: "post",
       target_id: post.id.toString(),
     }, {
-      onSuccess: () => {
-        toast.success(`Reacted with ${emoji}`);
+      onSuccess: (result) => {
+        const reactionName = emoji === "👍" ? "Like" : emoji === "❤️" ? "Love" : "Reaction";
+        toast.success(
+          result.action === "added"
+            ? `${reactionName} added`
+            : `${reactionName} removed`
+        );
       },
       onError: () => {
         toast.error("Failed to add reaction");
@@ -82,7 +107,25 @@ export default function PostCard({ post }: { post: Post }) {
     <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className="flex-1">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <Avatar className="h-10 w-10 shrink-0">
+              {post.author?.avatar_url?.includes("mega.nz") ? (
+                <MegaImage
+                  megaUrl={post.author.avatar_url}
+                  alt={post.author.display_name || ""}
+                  className="h-full w-full rounded-full object-cover"
+                />
+              ) : (
+                <AvatarImage
+                  src={post.author?.avatar_url}
+                  alt={post.author?.display_name}
+                />
+              )}
+              <AvatarFallback>
+                {post.author?.display_name?.slice(0, 1).toUpperCase() || "U"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-2">
               {post.group && groupPath && (
                 <Link href={groupPath}>
@@ -117,6 +160,7 @@ export default function PostCard({ post }: { post: Post }) {
                 </Badge>
               )}
             </p>
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -163,6 +207,62 @@ export default function PostCard({ post }: { post: Post }) {
           </div>
         )}
       </CardContent>
+
+      {(post.preview_comments?.length || showCommentComposer) && (
+        <CardContent className="space-y-3 border-t border-border/60 pt-3">
+          {post.preview_comments?.map((comment) => {
+            const commentAuthor = Array.isArray(comment.author)
+              ? comment.author[0]
+              : comment.author;
+
+            return (
+            <div key={comment.id} className="flex items-start gap-2">
+              <Avatar className="h-7 w-7 shrink-0">
+                <AvatarImage
+                  src={commentAuthor?.avatar_url}
+                  alt={commentAuthor?.display_name}
+                />
+                <AvatarFallback className="text-[10px]">
+                  {commentAuthor?.display_name?.slice(0, 1).toUpperCase() || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 rounded-xl bg-muted/60 px-3 py-2">
+                <p className="text-xs font-semibold text-foreground">
+                  {commentAuthor?.display_name || t("unknown_user")}
+                </p>
+                <p className="line-clamp-2 text-sm text-muted-foreground">{comment.body}</p>
+              </div>
+            </div>
+            );
+          })}
+
+          {showCommentComposer && (
+            <form onSubmit={handleCommentSubmit} className="flex items-end gap-2">
+              <Textarea
+                value={commentBody}
+                onChange={(event) => setCommentBody(event.target.value)}
+                placeholder="Write a comment…"
+                className="min-h-10 flex-1 resize-none"
+                rows={1}
+                disabled={createCommentMutation.isPending}
+              />
+              <Button
+                type="submit"
+                size="icon"
+                disabled={!commentBody.trim() || createCommentMutation.isPending}
+                aria-label="Post comment"
+              >
+                {createCommentMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </form>
+          )}
+        </CardContent>
+      )}
+
       <CardFooter className="flex flex-col gap-2 pt-3">
         <div className="flex justify-between w-full text-gray-600 dark:text-gray-400">
           <div className="flex space-x-4">
@@ -190,6 +290,30 @@ export default function PostCard({ post }: { post: Post }) {
               variant="ghost"
               size="sm"
               className="hover:bg-gray-50 dark:hover:bg-gray-700 px-2"
+              onClick={() => handleReaction("😂")}
+              disabled={toggleReactionMutation.isPending}
+              aria-label="React with laugh"
+            >
+              <span className="mr-1">😂</span>
+              <span className="text-xs">{post.reactions?.["😂"] || 0}</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hover:bg-gray-50 dark:hover:bg-gray-700 px-2"
+              onClick={() => handleReaction("😡")}
+              disabled={toggleReactionMutation.isPending}
+              aria-label="React with angry"
+            >
+              <span className="mr-1">😡</span>
+              <span className="text-xs">{post.reactions?.["😡"] || 0}</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hover:bg-gray-50 dark:hover:bg-gray-700 px-2"
+              onClick={() => setShowCommentComposer((visible) => !visible)}
+              aria-expanded={showCommentComposer}
             >
               <MessageSquare className="mr-1 h-4 w-4" />
               <span className="text-xs">{post.comments_count || 0}</span>

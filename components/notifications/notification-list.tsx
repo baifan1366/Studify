@@ -178,7 +178,7 @@ export function NotificationList({ notifications, isLoading, compact = false }: 
         <Card
           key={notification.public_id}
           className={`cursor-pointer transition-colors hover:bg-muted/50 ${
-            !notification.is_read ? 'border-primary/50 bg-primary/5' : ''
+            !notification.is_read ? 'border-orange-500/40 bg-orange-500/5' : 'border-border bg-card'
           } ${compact ? 'border-0 shadow-none' : ''}`}
           onClick={() => handleNotificationClick(notification)}
         >
@@ -229,7 +229,7 @@ export function NotificationList({ notifications, isLoading, compact = false }: 
                 </div>
                 
                 {!notification.is_read && (
-                  <Badge variant="secondary" className={`${compact ? 'text-xs' : 'text-xs'} mt-2`}>
+                  <Badge variant="secondary" className={`${compact ? 'text-xs' : 'text-xs'} mt-2 border-orange-500/30 bg-orange-500/10 text-orange-600 dark:text-orange-300`}>
                     {t('new') || 'New'}
                   </Badge>
                 )}

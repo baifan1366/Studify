@@ -700,7 +700,7 @@ export function ClassroomQuizPage({ classroomSlug }: ClassroomQuizPageProps) {
                                   ? 'bg-green-50 border-green-200'
                                   : isStudentAnswer
                                     ? 'bg-red-50 border-red-200'
-                                    : 'bg-gray-50 border-gray-200'
+                                    : 'bg-muted/40 border-border'
                                   }`}
                               >
                                 <div className="flex items-center gap-2">
@@ -725,7 +725,7 @@ export function ClassroomQuizPage({ classroomSlug }: ClassroomQuizPageProps) {
                         <div className="ml-8 space-y-3">
                           <div>
                             <p className="text-sm text-muted-foreground mb-1">Student's Answer:</p>
-                            <div className={`p-3 rounded border ${isAnswered ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'
+                            <div className={`p-3 rounded border ${isAnswered ? 'bg-blue-500/10 border-blue-500/30' : 'bg-muted/40 border-border'
                               }`}>
                               <p className="text-sm">
                                 {isAnswered ? studentAnswer : 'No answer provided'}

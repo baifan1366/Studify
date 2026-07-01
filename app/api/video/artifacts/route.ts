@@ -9,7 +9,7 @@ type ArtifactType = "note" | "mind_map" | "quiz";
 const artifactInstructions: Record<ArtifactType, string> = {
   note: `Create concise but complete study notes in Markdown. Use headings, bullets, key terms, and a short recap.
 Return JSON only: {"title":"...","markdown":"..."}`,
-  mind_map: `Create a rich concept map grounded only in the transcript. Return 10-24 concise concept nodes and meaningful directed relationships. Use stable alphanumeric ids, one root concept, 2-4 hierarchy levels, short labels, and useful one-sentence descriptions. Do not return Mermaid.
+  mind_map: `Create a NotebookLM-style branching mind map grounded only in the transcript. Start with one central root concept, create 3-6 distinct main-topic branches, and add concise child concepts beneath each branch. Return 10-24 nodes across 2-4 hierarchy levels. Prefer a clear parent-child tree; add a cross-topic edge only when it reveals an important connection. Use stable alphanumeric ids, short labels, useful one-sentence descriptions, and set each node's numeric level. Do not return Mermaid.
 Return JSON only: {"title":"...","graph":{"nodes":[{"id":"root","label":"Main idea","description":"...","level":0}],"edges":[{"source":"root","target":"concept_1","label":"leads to"}]}}`,
   quiz: `Create 5 mixed-difficulty multiple-choice questions grounded only in the transcript. Each question must have exactly 4 options and a zero-based correctIndex.
 Return JSON only: {"title":"...","questions":[{"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"..."}]}`,

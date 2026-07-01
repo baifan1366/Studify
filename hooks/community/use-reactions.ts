@@ -29,26 +29,38 @@ const toggleReaction = async (params: {
   return response.json();
 };
 
+type ReactionAction = 'added' | 'removed';
+
+const updateReactionCount = (
+  reactions: Record<string, number> | undefined,
+  emoji: string,
+  action: ReactionAction
+) => {
+  const next = { ...(reactions || {}) };
+  const currentCount = next[emoji] || 0;
+  const nextCount = action === 'added' ? currentCount + 1 : Math.max(0, currentCount - 1);
+
+  if (nextCount === 0) {
+    delete next[emoji];
+  } else {
+    next[emoji] = nextCount;
+  }
+
+  return next;
+};
+
 // Helper function to update post reactions in any post list
-const updatePostReactionsInList = (posts: Post[] | undefined, targetId: string, emoji: string): Post[] | undefined => {
+const updatePostReactionsInList = (
+  posts: Post[] | undefined,
+  targetId: string,
+  emoji: string,
+  action: ReactionAction
+): Post[] | undefined => {
   if (!posts) return posts;
   
   return posts.map(post => {
     if (post.id.toString() === targetId) {
-      const newReactions = { ...post.reactions };
-      const currentCount = newReactions[emoji] || 0;
-      
-      // Toggle: if count > 0, decrease by 1, otherwise increase by 1
-      if (currentCount > 0) {
-        newReactions[emoji] = currentCount - 1;
-        if (newReactions[emoji] === 0) {
-          delete newReactions[emoji];
-        }
-      } else {
-        newReactions[emoji] = 1;
-      }
-      
-      return { ...post, reactions: newReactions };
+      return { ...post, reactions: updateReactionCount(post.reactions, emoji, action) };
     }
     return post;
   });
@@ -66,102 +78,40 @@ export const useToggleReaction = (groupSlug: string, postSlug: string) => {
       await queryClient.cancelQueries({ queryKey: ['popularPosts'] });
       await queryClient.cancelQueries({ queryKey: ['searchPosts'] });
 
-      // Snapshot the previous values
-      const previousPost = queryClient.getQueryData(['post', groupSlug, postSlug]);
-      const previousComments = queryClient.getQueryData(['comments', groupSlug, postSlug]);
-      const previousPopularPosts = queryClient.getQueryData(['popularPosts']);
-      const previousSearchPosts = queryClient.getQueryData(['searchPosts']);
-
-      // Optimistically update the cache
-      if (variables.target_type === 'post') {
-        // Update individual post data
-        queryClient.setQueryData(['post', groupSlug, postSlug], (old: Post | undefined) => {
-          if (!old) return old;
-          
-          const newReactions = { ...old.reactions };
-          const currentCount = newReactions[variables.emoji] || 0;
-          
-          // Toggle: if count > 0, decrease by 1, otherwise increase by 1
-          if (currentCount > 0) {
-            newReactions[variables.emoji] = currentCount - 1;
-            if (newReactions[variables.emoji] === 0) {
-              delete newReactions[variables.emoji];
-            }
-          } else {
-            newReactions[variables.emoji] = 1;
-          }
-          
-          return { ...old, reactions: newReactions };
-        });
-
-        // Update popular posts list
-        queryClient.setQueryData(['popularPosts'], (old: Post[] | undefined) => 
-          updatePostReactionsInList(old, variables.target_id, variables.emoji)
-        );
-
-        // Update search posts list (if exists)
-        queryClient.setQueryData(['searchPosts'], (old: Post[] | undefined) => 
-          updatePostReactionsInList(old, variables.target_id, variables.emoji)
-        );
-
-      } else if (variables.target_type === 'comment') {
-        queryClient.setQueryData(['comments', groupSlug, postSlug], (old: Comment[] | undefined) => {
-          if (!old) return old;
-          
-          return old.map(comment => {
-            if (comment.id.toString() === variables.target_id) {
-              const newReactions = { ...comment.reactions };
-              const currentCount = newReactions[variables.emoji] || 0;
-              
-              // Toggle: if count > 0, decrease by 1, otherwise increase by 1
-              if (currentCount > 0) {
-                newReactions[variables.emoji] = currentCount - 1;
-                if (newReactions[variables.emoji] === 0) {
-                  delete newReactions[variables.emoji];
-                }
-              } else {
-                newReactions[variables.emoji] = 1;
-              }
-              
-              return { ...comment, reactions: newReactions };
-            }
-            return comment;
-          });
-        });
-      }
-
-      // Return a context object with the snapshotted values
-      return { previousPost, previousComments, previousPopularPosts, previousSearchPosts };
+      await queryClient.cancelQueries({ queryKey: ['groupPosts', groupSlug] });
     },
-    onError: (err, variables, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
-      if (context?.previousPost) {
-        queryClient.setQueryData(['post', groupSlug, postSlug], context.previousPost);
-      }
-      if (context?.previousComments) {
-        queryClient.setQueryData(['comments', groupSlug, postSlug], context.previousComments);
-      }
-      if (context?.previousPopularPosts) {
-        queryClient.setQueryData(['popularPosts'], context.previousPopularPosts);
-      }
-      if (context?.previousSearchPosts) {
-        queryClient.setQueryData(['searchPosts'], context.previousSearchPosts);
+    onSuccess: (result, variables) => {
+      if (variables.target_type === 'post') {
+        queryClient.setQueryData(['post', groupSlug, postSlug], (old: Post | undefined) =>
+          old
+            ? { ...old, reactions: updateReactionCount(old.reactions, variables.emoji, result.action) }
+            : old
+        );
+        queryClient.setQueryData(['groupPosts', groupSlug], (old: Post[] | undefined) =>
+          updatePostReactionsInList(old, variables.target_id, variables.emoji, result.action)
+        );
+        queryClient.setQueryData(['popularPosts'], (old: Post[] | undefined) =>
+          updatePostReactionsInList(old, variables.target_id, variables.emoji, result.action)
+        );
+        queryClient.setQueriesData<Post[]>({ queryKey: ['searchPosts'] }, (old) =>
+          updatePostReactionsInList(old, variables.target_id, variables.emoji, result.action)
+        );
+      } else {
+        queryClient.setQueryData(['comments', groupSlug, postSlug], (old: Comment[] | undefined) =>
+          old?.map((comment) =>
+            comment.id.toString() === variables.target_id
+              ? {
+                  ...comment,
+                  reactions: updateReactionCount(comment.reactions, variables.emoji, result.action),
+                }
+              : comment
+          )
+        );
       }
     },
     onSettled: () => {
-      // Always refetch after error or success to ensure we have the latest data
-      queryClient.invalidateQueries({
-        queryKey: ['post', groupSlug, postSlug],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['comments', groupSlug, postSlug],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['popularPosts'],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['searchPosts'],
-      });
+      // The write is persisted asynchronously. Keep the confirmed local result
+      // instead of immediately replacing it with a potentially stale database read.
     },
   });
 };

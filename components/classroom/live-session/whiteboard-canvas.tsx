@@ -926,7 +926,7 @@ const WhiteboardCanvas = forwardRef<LiveblocksWhiteboardRef, Omit<LiveblocksWhit
     >
       {/* Loading indicator */}
       {!isStorageLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(253, 245, 230, 0.8)' }}>
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 dark:border-indigo-400 mx-auto mb-2"></div>
             <p className="text-sm text-gray-600 dark:text-gray-300">{t('loading_whiteboard')}</p>

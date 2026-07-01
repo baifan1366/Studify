@@ -81,7 +81,7 @@ export default function QuizScoreDisplay({
                       ${color === 'yellow' ? 'border-yellow-500 text-yellow-700 bg-yellow-50' : ''}
                       ${color === 'orange' ? 'border-orange-500 text-orange-700 bg-orange-50' : ''}
                       ${color === 'red' ? 'border-red-500 text-red-700 bg-red-50' : ''}
-                      ${color === 'gray' ? 'border-gray-500 text-gray-700 bg-gray-50' : ''}
+                      ${color === 'gray' ? 'border-gray-500 text-muted-foreground bg-muted' : ''}
                     `}
                   >
                     {level}
@@ -192,7 +192,7 @@ export default function QuizScoreDisplay({
                     ${color === 'yellow' ? 'border-yellow-500 text-yellow-700 bg-yellow-50' : ''}
                     ${color === 'orange' ? 'border-orange-500 text-orange-700 bg-orange-50' : ''}
                     ${color === 'red' ? 'border-red-500 text-red-700 bg-red-50' : ''}
-                    ${color === 'gray' ? 'border-gray-500 text-gray-700 bg-gray-50' : ''}
+                    ${color === 'gray' ? 'border-gray-500 text-muted-foreground bg-muted' : ''}
                   `}
                 >
                   {level}

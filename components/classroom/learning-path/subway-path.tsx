@@ -103,7 +103,7 @@ export function SubwayPath({ milestones, pathId, progress }: SubwayPathProps) {
       {/* 地铁线路图 */}
       <div className="relative">
         {/* 连接线 */}
-        <div className="absolute top-1/2 left-0 right-0 h-1 bg-gray-300 -translate-y-1/2 z-0" />
+        <div className="absolute top-1/2 left-0 right-0 h-1 bg-border -translate-y-1/2 z-0" />
         
         {/* 里程碑节点 */}
         <div className="flex justify-between relative z-10">
@@ -112,7 +112,7 @@ export function SubwayPath({ milestones, pathId, progress }: SubwayPathProps) {
               <button
                 onClick={() => handleMilestoneClick(milestone)}
                 className={cn(
-                  "rounded-full p-2 bg-white border-2 transition-all",
+                  "rounded-full p-2 bg-card border-2 transition-all",
                   milestone.status === 'completed' ? "border-green-500" :
                   milestone.status === 'in-progress' ? "border-blue-500" :
                   "border-gray-300"
@@ -124,7 +124,7 @@ export function SubwayPath({ milestones, pathId, progress }: SubwayPathProps) {
               </button>
               <span className={cn(
                 "mt-2 text-xs font-medium text-center max-w-[100px] truncate",
-                milestone.status === 'locked' ? "text-gray-400" : "text-gray-700"
+                milestone.status === 'locked' ? "text-muted-foreground/70" : "text-foreground"
               )}>
                 {milestone.title}
               </span>
@@ -135,7 +135,7 @@ export function SubwayPath({ milestones, pathId, progress }: SubwayPathProps) {
 
       {/* 里程碑详情 */}
       {selectedMilestone && (
-        <div className="mt-12 p-6 border rounded-lg bg-white shadow-sm">
+        <div className="mt-12 rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm">
           <div className="flex justify-between items-start mb-4">
             <div>
               <h3 className="text-lg font-semibold">{selectedMilestone.title}</h3>
@@ -166,7 +166,7 @@ export function SubwayPath({ milestones, pathId, progress }: SubwayPathProps) {
             )}
           </div>
           
-          <p className="text-gray-600 mb-4">{selectedMilestone.description}</p>
+          <p className="mb-4 text-muted-foreground">{selectedMilestone.description}</p>
           
           {selectedMilestone.resourceType && (
             <div className="text-sm text-gray-500 mb-2">
@@ -179,7 +179,7 @@ export function SubwayPath({ milestones, pathId, progress }: SubwayPathProps) {
       {/* 奖励模态框 */}
       {showRewardModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg max-w-md w-full">
+          <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 text-card-foreground">
             <h3 className="text-xl font-bold mb-4 text-center">🎉 恭喜！</h3>
             <div className="py-4 text-center">
               <p className="text-lg">{rewardMessage}</p>

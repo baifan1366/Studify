@@ -268,7 +268,7 @@ export function StudentSubmissionSummary({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="bg-white/50 p-4 rounded-lg">
+            <div className="rounded-lg bg-background/50 p-4">
               <div className="flex items-start gap-3">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback>

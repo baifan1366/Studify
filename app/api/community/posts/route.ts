@@ -91,11 +91,12 @@ export async function GET(request: Request) {
       .in("post_id", postIds);
 
     // Get comment counts for accessible posts
-    const { data: commentCounts } = await supabaseClient
+    const { data: postComments } = await supabaseClient
       .from("community_comment")
-      .select("post_id")
+      .select("id, public_id, post_id, author_id, parent_id, body, created_at, author:profiles ( display_name, avatar_url )")
       .in("post_id", postIds)
-      .eq("is_deleted", false);
+      .eq("is_deleted", false)
+      .order("created_at", { ascending: false });
 
     // Get post files for accessible posts
     const postPublicIds = accessiblePosts.map((p) => p.public_id);
@@ -125,7 +126,9 @@ export async function GET(request: Request) {
 
       // Count comments
       const commentsCount =
-        commentCounts?.filter((c) => c.post_id === post.id).length || 0;
+        postComments?.filter((c) => c.post_id === post.id).length || 0;
+      const previewComments =
+        postComments?.filter((c) => c.post_id === post.id && !c.parent_id).slice(0, 2) || [];
 
       // Get files for this post
       const files = postFiles?.filter((f) => f.post_id === post.public_id) || [];
@@ -140,6 +143,7 @@ export async function GET(request: Request) {
         ...post,
         reactions: reactionCounts,
         comments_count: commentsCount,
+        preview_comments: previewComments,
         files: files,
         hashtags: hashtags,
       };

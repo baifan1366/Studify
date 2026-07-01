@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BookOpenText, BrainCircuit, Check, FileQuestion, Loader2, Pencil, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,8 +10,8 @@ import { ReactFlowMindMap } from "@/components/ai/react-flow-mind-map";
 import { AIMarkdownMessage } from "@/components/video/ai-markdown-message";
 import { useToast } from "@/hooks/use-toast";
 
-type ArtifactType = "note" | "mind_map" | "quiz";
-type Artifact = {
+export type ArtifactType = "note" | "mind_map" | "quiz";
+export type Artifact = {
   public_id: string;
   artifact_type: ArtifactType;
   title: string;
@@ -27,14 +27,93 @@ const actions = [
   { type: "quiz" as const, label: "Generate practice quiz", icon: FileQuestion },
 ];
 
+function PracticeQuizViewer({ artifact }: { artifact: Artifact }) {
+  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const questions = artifact.content.questions || [];
+  const answeredCount = Object.keys(answers).length;
+  const score = questions.reduce(
+    (total: number, question: any, index: number) =>
+      total + (answers[index] === question.correctIndex ? 1 : 0),
+    0
+  );
+
+  return (
+    <div className="space-y-4">
+      {answeredCount > 0 && (
+        <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-sm">
+          Progress: {answeredCount}/{questions.length}
+          {answeredCount === questions.length && ` · Score: ${score}/${questions.length}`}
+        </div>
+      )}
+      {questions.map((question: any, index: number) => {
+        const selected = answers[index];
+        const answered = selected !== undefined;
+        return (
+          <div key={index} className="rounded-xl border border-border bg-card p-4">
+            <p className="font-medium">{index + 1}. {question.question}</p>
+            <div className="mt-3 grid gap-2">
+              {(question.options || []).map((option: string, optionIndex: number) => {
+                const isCorrect = optionIndex === question.correctIndex;
+                const isSelected = optionIndex === selected;
+                return (
+                  <button
+                    key={optionIndex}
+                    type="button"
+                    onClick={() => setAnswers((current) => ({ ...current, [index]: optionIndex }))}
+                    className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                      answered && isCorrect
+                        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                        : answered && isSelected
+                          ? "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300"
+                          : "border-border bg-muted/40 hover:border-orange-500/40 hover:bg-orange-500/5"
+                    }`}
+                  >
+                    {answered && isCorrect && <Check className="mr-2 inline h-3.5 w-3.5" />}
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+            {answered && question.explanation && (
+              <p className="mt-3 text-xs text-muted-foreground">{question.explanation}</p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ArtifactViewer({ artifact }: { artifact: Artifact }) {
+  if (artifact.artifact_type === "note") {
+    return <AIMarkdownMessage content={artifact.content.markdown || ""} />;
+  }
+  if (artifact.artifact_type === "mind_map") {
+    return (
+      <ReactFlowMindMap
+        graph={artifact.content.graph || { nodes: [], edges: [] }}
+        layout="radial"
+        className="h-[620px]"
+      />
+    );
+  }
+  return <PracticeQuizViewer key={artifact.public_id} artifact={artifact} />;
+}
+
 export function VideoLearningArtifacts({
   lessonId,
   timestampSec = 0,
   library = false,
+  types,
+  embedded = false,
+  showActions = true,
 }: {
   lessonId?: string;
   timestampSec?: number;
   library?: boolean;
+  types?: ArtifactType[];
+  embedded?: boolean;
+  showActions?: boolean;
 }) {
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [active, setActive] = useState<Artifact | null>(null);
@@ -44,20 +123,35 @@ export function VideoLearningArtifacts({
   const [title, setTitle] = useState("");
   const [draft, setDraft] = useState("");
   const { toast } = useToast();
+  const typeKey = types?.join(",") || "all";
 
   useEffect(() => {
     const controller = new AbortController();
     const query = lessonId ? `?lessonId=${encodeURIComponent(lessonId)}` : "";
     void fetch(`/api/video/artifacts${query}`, { signal: controller.signal })
       .then((response) => response.ok ? response.json() : Promise.reject())
-      .then((data) => setArtifacts(data.artifacts || []))
+      .then((data) => {
+        const loaded = data.artifacts || [];
+        setArtifacts(loaded);
+        if (embedded) {
+          const firstMatch = loaded.find(
+            (artifact: Artifact) => !types?.length || types.includes(artifact.artifact_type)
+          );
+          setActive(firstMatch || null);
+        }
+      })
       .catch((error) => {
         if (error?.name !== "AbortError") {
           toast({ title: "Could not load your study library", variant: "destructive" });
         }
       });
     return () => controller.abort();
-  }, [lessonId, toast]);
+  }, [embedded, lessonId, toast, typeKey]);
+
+  const filteredArtifacts = useMemo(
+    () => artifacts.filter((artifact) => !types?.length || types.includes(artifact.artifact_type)),
+    [artifacts, typeKey]
+  );
 
   const open = (artifact: Artifact) => {
     setActive(artifact);
@@ -82,6 +176,11 @@ export function VideoLearningArtifacts({
       if (!response.ok) throw new Error(data.error || "Generation failed");
       setArtifacts((items) => [data.artifact, ...items]);
       open(data.artifact);
+      window.dispatchEvent(
+        new CustomEvent("video-learning-artifact-generated", {
+          detail: { type, lessonId, artifact: data.artifact },
+        })
+      );
     } catch (error) {
       toast({ title: "Could not generate artifact", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
     } finally {
@@ -116,18 +215,18 @@ export function VideoLearningArtifacts({
   };
 
   return (
-    <div className={library ? "space-y-4" : "space-y-2 border-b bg-muted/20 p-3"}>
-      {!library && lessonId && <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {actions.map(({ type, label, icon: Icon }) => (
+    <div className={library || embedded ? "space-y-4" : "space-y-2 border-b bg-muted/20 p-3"}>
+      {showActions && !library && lessonId && <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {actions.filter((action) => !types?.length || types.includes(action.type)).map(({ type, label, icon: Icon }) => (
           <Button key={type} variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => generate(type)} disabled={!!generating}>
             {generating === type ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
             {label}
           </Button>
         ))}
       </div>}
-      {artifacts.length > 0 ? (
+      {filteredArtifacts.length > 0 ? (
         <div className={library ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" : "flex gap-1.5 overflow-x-auto"}>
-          {artifacts.slice(0, library ? 12 : 6).map((artifact) => {
+          {filteredArtifacts.slice(0, library ? 12 : 6).map((artifact) => {
             const Icon = artifact.artifact_type === "note" ? BookOpenText : artifact.artifact_type === "mind_map" ? BrainCircuit : FileQuestion;
             return (
             <button key={artifact.public_id} onClick={() => open(artifact)} className={library ? "rounded-xl border bg-card p-4 text-left transition-colors hover:bg-muted/50" : "flex shrink-0 items-center gap-1 rounded-full bg-background px-2.5 py-1 text-[11px] text-muted-foreground ring-1 ring-border hover:text-foreground"}>
@@ -141,9 +240,25 @@ export function VideoLearningArtifacts({
             </button>
           )})}
         </div>
-      ) : library ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">Your saved notes, mind maps, and practice quizzes will appear here.</div> : null}
+      ) : (library || embedded) ? (
+        <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+          No generated {types?.[0]?.replace("_", " ") || "study artifacts"} yet. Generate one from the AI Assistant tab.
+        </div>
+      ) : null}
 
-      <Dialog open={!!active} onOpenChange={(value) => !value && setActive(null)}>
+      {embedded && active && (
+        <div className="space-y-3">
+          <div>
+            <h3 className="font-semibold text-foreground">{active.title}</h3>
+            <p className="text-xs text-muted-foreground">
+              Select another generated item above to switch views.
+            </p>
+          </div>
+          <ArtifactViewer artifact={active} />
+        </div>
+      )}
+
+      <Dialog open={!embedded && !!active} onOpenChange={(value) => !value && setActive(null)}>
         <DialogContent className="max-h-[88vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit learning artifact" : active?.title}</DialogTitle>
@@ -159,27 +274,7 @@ export function VideoLearningArtifacts({
             </div>
           ) : active ? (
             <div className="space-y-4">
-              {active.artifact_type === "note" && <AIMarkdownMessage content={active.content.markdown || ""} />}
-              {active.artifact_type === "mind_map" && (
-                <ReactFlowMindMap graph={active.content.graph || { nodes: [], edges: [] }} />
-              )}
-              {active.artifact_type === "quiz" && (
-                <div className="space-y-4">
-                  {(active.content.questions || []).map((question: any, index: number) => (
-                    <div key={index} className="rounded-xl border p-4">
-                      <p className="font-medium">{index + 1}. {question.question}</p>
-                      <div className="mt-2 grid gap-2">
-                        {(question.options || []).map((option: string, optionIndex: number) => (
-                          <div key={optionIndex} className={`rounded-lg px-3 py-2 text-sm ${optionIndex === question.correctIndex ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-muted"}`}>
-                            {optionIndex === question.correctIndex && <Check className="mr-2 inline h-3.5 w-3.5" />}{option}
-                          </div>
-                        ))}
-                      </div>
-                      {question.explanation && <p className="mt-2 text-xs text-muted-foreground">{question.explanation}</p>}
-                    </div>
-                  ))}
-                </div>
-              )}
+              <ArtifactViewer artifact={active} />
               <Button variant="outline" onClick={() => setEditing(true)} className="gap-2"><Pencil className="h-4 w-4" /> Edit</Button>
             </div>
           ) : null}

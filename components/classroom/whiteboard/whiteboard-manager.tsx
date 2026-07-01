@@ -77,7 +77,7 @@ export default function WhiteboardManager({
   return (
     <div className="flex h-full">
       {/* Sidebar - Whiteboard List */}
-      <div className="w-80 border-r bg-gray-50 p-4">
+      <div className="w-80 border-r border-border bg-muted/30 p-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Whiteboards</h3>
           {userRole === 'tutor' && isSessionActive && (

@@ -42,7 +42,7 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+    <div className="container mx-auto min-h-screen space-y-4 bg-background px-4 py-4 text-foreground sm:space-y-6 sm:px-6 sm:py-6">
 
         <motion.div 
           className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
@@ -51,8 +51,9 @@ export default function NotificationsPage() {
           transition={{ duration: 0.6 }}
         >
           <div className="flex-1 min-w-0">
+            <div className="mb-3 h-1 w-12 rounded-full bg-orange-500" />
             <motion.h1 
-              className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-orange-600 dark:from-blue-400 dark:via-purple-400 dark:to-orange-400 bg-clip-text text-transparent"
+              className="text-2xl font-bold text-foreground sm:text-3xl md:text-4xl"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.8 }}
@@ -60,7 +61,7 @@ export default function NotificationsPage() {
               {t('notifications')}
             </motion.h1>
             <motion.p 
-              className="text-gray-600 dark:text-gray-400 text-sm sm:text-base md:text-lg mt-1"
+              className="mt-1 text-sm text-muted-foreground sm:text-base md:text-lg"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.6 }}
@@ -82,7 +83,7 @@ export default function NotificationsPage() {
                 className="flex-1 sm:flex-initial"
               >
                 <Button
-                  className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 dark:from-blue-500 dark:to-purple-500 dark:hover:from-blue-600 dark:hover:to-purple-600 text-white border-0 text-xs sm:text-sm"
+                  className="w-full border-0 bg-orange-500 text-xs text-white hover:bg-orange-600 sm:w-auto sm:text-sm"
                   onClick={handleMarkAllRead}
                   disabled={markAllReadMutation.isPending}
                   size="sm"

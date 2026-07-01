@@ -58,7 +58,7 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto min-h-screen space-y-6 bg-background px-4 py-6 text-foreground sm:px-6">
       <motion.div
         className="flex items-center justify-between"
         initial={{ opacity: 0, y: 20 }}
@@ -66,8 +66,9 @@ export default function NotificationsPage() {
         transition={{ duration: 0.6 }}
       >
         <div>
+          <div className="mb-3 h-1 w-12 rounded-full bg-orange-500" />
           <motion.h1
-            className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-orange-400 bg-clip-text text-transparent"
+            className="text-3xl font-bold text-foreground sm:text-4xl"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.8 }}
@@ -75,7 +76,7 @@ export default function NotificationsPage() {
             {t("title") || "Notifications"}
           </motion.h1>
           <motion.p
-            className="text-white/70 dark:text-white/70 text-lg"
+            className="mt-1 text-lg text-muted-foreground"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.6 }}
@@ -93,7 +94,7 @@ export default function NotificationsPage() {
           {unreadCount > 0 && (
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0"
+                className="border-0 bg-orange-500 text-white hover:bg-orange-600"
                 onClick={handleMarkAllRead}
                 disabled={markAllReadMutation.isPending}
               >
@@ -109,7 +110,8 @@ export default function NotificationsPage() {
                 whileTap={{ scale: 0.95 }}
               >
                 <Button
-                  className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm"
+                  variant="outline"
+                  className="border-border bg-card text-foreground hover:bg-muted"
                   size="icon"
                 >
                   <MoreVertical className="h-4 w-4" />
@@ -118,13 +120,13 @@ export default function NotificationsPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="bg-white/10 backdrop-blur-sm border-white/20"
+              className="border-border bg-popover text-popover-foreground"
             >
-              <DropdownMenuItem className="text-white hover:bg-white/10">
+              <DropdownMenuItem>
                 <Filter className="h-4 w-4 mr-2" />
                 {t("filter_notifications") || "Filter notifications"}
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-white hover:bg-white/10">
+              <DropdownMenuItem>
                 {t("export_notifications") || "Export notifications"}
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -142,10 +144,10 @@ export default function NotificationsPage() {
           onValueChange={setActiveTab}
           className="space-y-6"
         >
-          <TabsList className="grid w-full grid-cols-3 bg-white/10 backdrop-blur-sm border border-white/20">
+          <TabsList className="grid h-auto w-full grid-cols-3 border border-border bg-muted/60">
             <TabsTrigger
               value="all"
-              className="flex items-center gap-2 data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70"
+              className="flex items-center gap-2 text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
             >
               <Bell className="h-4 w-4" />
               {t("all") || "All"}
@@ -160,7 +162,7 @@ export default function NotificationsPage() {
             </TabsTrigger>
             <TabsTrigger
               value="unread"
-              className="flex items-center gap-2 data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70"
+              className="flex items-center gap-2 text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
             >
               {t("unread") || "Unread"}
               {unreadCount > 0 && (
@@ -174,7 +176,7 @@ export default function NotificationsPage() {
             </TabsTrigger>
             <TabsTrigger
               value="settings"
-              className="flex items-center gap-2 data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70"
+              className="flex items-center gap-2 text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
             >
               <Settings className="h-4 w-4" />
               {t("settings") || "Settings"}
@@ -187,12 +189,12 @@ export default function NotificationsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
+              <Card className="border-border bg-card text-card-foreground">
                 <CardHeader>
-                  <CardTitle className="text-white">
+                  <CardTitle className="text-foreground">
                     {t("all_notifications") || "All Notifications"}
                   </CardTitle>
-                  <CardDescription className="text-white/70">
+                  <CardDescription className="text-muted-foreground">
                     {t("all_notifications_desc") ||
                       "View all your notifications, both read and unread"}
                   </CardDescription>
@@ -204,13 +206,14 @@ export default function NotificationsPage() {
                   />
 
                   {currentNotifications?.hasMore && (
-                    <div className="p-4 border-t border-white/10">
+                    <div className="border-t border-border p-4">
                       <motion.div
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                       >
                         <Button
-                          className="w-full bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm"
+                          variant="outline"
+                          className="w-full border-border hover:bg-muted"
                           onClick={handleLoadMore}
                         >
                           {t("load_more") || "Load more notifications"}
@@ -229,9 +232,9 @@ export default function NotificationsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
+              <Card className="border-border bg-card text-card-foreground">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-white">
+                  <CardTitle className="flex items-center gap-2 text-foreground">
                     {t("unread_notifications") || "Unread Notifications"}
                     {unreadCount > 0 && (
                       <Badge className="bg-red-500/20 text-red-300 border-red-400/30">
@@ -239,7 +242,7 @@ export default function NotificationsPage() {
                       </Badge>
                     )}
                   </CardTitle>
-                  <CardDescription className="text-white/70">
+                  <CardDescription className="text-muted-foreground">
                     {unreadCount > 0
                       ? `You have ${unreadCount} unread notification${unreadCount > 1 ? "s" : ""
                       }`
@@ -253,13 +256,14 @@ export default function NotificationsPage() {
                   />
 
                   {currentNotifications?.hasMore && (
-                    <div className="p-4 border-t border-white/10">
+                    <div className="border-t border-border p-4">
                       <motion.div
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                       >
                         <Button
-                          className="w-full bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm"
+                          variant="outline"
+                          className="w-full border-border hover:bg-muted"
                           onClick={handleLoadMore}
                         >
                           {t("load_more") || "Load more notifications"}

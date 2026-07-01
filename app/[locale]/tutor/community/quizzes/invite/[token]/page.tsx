@@ -204,7 +204,7 @@ export default function QuizInvitePage() {
                 )}
               </div>
 
-              <div className="bg-gray-50 p-3 rounded-lg">
+              <div className="rounded-lg bg-muted p-3 text-foreground">
                 <p className="text-sm text-gray-700">
                   <strong>Permission:</strong> {getPermissionDescription(inviteInfo.permission_type)}
                 </p>

@@ -29,7 +29,7 @@ import {
   useVideoTermsTooltip,
   useVideoTerms,
 } from "@/hooks/video/use-video-qa";
-import { useCourseNotes } from "@/hooks/course/use-course-notes";
+import { useCourseNotes, type CourseNote } from "@/hooks/course/use-course-notes";
 import { VideoQAPanel } from "./video-qa-panel";
 import { VideoTermsTooltip, VideoTermsIndicator } from "./video-terms-tooltip";
 import {
@@ -69,6 +69,7 @@ import type { VideoPlayerAPI } from "@/interfaces/video-player-api";
 import Hls from "hls.js";
 import ReactMarkdown from "react-markdown";
 import { useTranslateTranscript, useVideoTranscript } from "@/hooks/video/use-video-learning-data";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface DanmakuMessage {
   id: string;
@@ -276,6 +277,7 @@ export default function BilibiliVideoPlayer({
   const [showNotes, setShowNotes] = useState(false);
   const [showNotesSidebar, setShowNotesSidebar] = useState(false); // Auto-show sidebar when notes are nearby
   const [autoShowNotesSidebar, setAutoShowNotesSidebar] = useState(true); // Auto-show preference
+  const [selectedSidebarNote, setSelectedSidebarNote] = useState<CourseNote | null>(null);
 
   // Fetch terms for current time (update every 15 seconds)
   const { data: termsData } = useVideoTerms(
@@ -3029,7 +3031,16 @@ export default function BilibiliVideoPlayer({
                           key={note.id}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className={`bg-slate-800 rounded-lg p-4 border transition-all duration-200 hover:shadow-lg ${
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setSelectedSidebarNote(note)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              setSelectedSidebarNote(note);
+                            }
+                          }}
+                          className={`cursor-pointer bg-slate-800 rounded-lg p-4 border transition-all duration-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-yellow-400/60 ${
                             isVeryClose
                               ? 'border-yellow-500 shadow-lg shadow-yellow-500/20'
                               : 'border-slate-700 hover:border-slate-600'
@@ -3046,7 +3057,8 @@ export default function BilibiliVideoPlayer({
                               <div className="flex items-center gap-2 text-xs text-gray-400">
                                 {note.timestampSec !== undefined && (
                                   <button
-                                    onClick={() => {
+                                    onClick={(event) => {
+                                      event.stopPropagation();
                                       if (videoRef.current) {
                                         videoRef.current.currentTime = note.timestampSec!;
                                       }
@@ -3083,6 +3095,9 @@ export default function BilibiliVideoPlayer({
                           <p className="line-clamp-6 text-sm leading-5 text-gray-300">
                             {getNotePreview(note)}
                           </p>
+                          <div className="mt-2 text-xs font-medium text-blue-400">
+                            View full note
+                          </div>
 
                           {/* Note Footer */}
                           <div className="mt-3 pt-3 border-t border-slate-700 flex items-center justify-between text-xs text-gray-500">
@@ -3132,6 +3147,44 @@ export default function BilibiliVideoPlayer({
             </motion.div>
           )}
         </AnimatePresence>
+
+        <Dialog open={!!selectedSidebarNote} onOpenChange={(open) => !open && setSelectedSidebarNote(null)}>
+          <DialogContent className="max-h-[88vh] max-w-3xl overflow-y-auto border-slate-700 bg-slate-900 text-white">
+            <DialogHeader>
+              <DialogTitle className="text-xl text-white">
+                {selectedSidebarNote?.title || "Course note"}
+              </DialogTitle>
+              <DialogDescription className="flex flex-wrap items-center gap-3 text-slate-400">
+                {selectedSidebarNote?.timestampSec !== undefined && (
+                  <button
+                    onClick={() => {
+                      if (videoRef.current) {
+                        videoRef.current.currentTime = selectedSidebarNote.timestampSec!;
+                      }
+                      setSelectedSidebarNote(null);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 font-mono text-xs text-white hover:bg-blue-700"
+                  >
+                    <Clock className="h-3 w-3" />
+                    {formatTime(selectedSidebarNote.timestampSec)}
+                  </button>
+                )}
+                {selectedSidebarNote?.createdAt && (
+                  <span>{new Date(selectedSidebarNote.createdAt).toLocaleDateString()}</span>
+                )}
+                {selectedSidebarNote?.aiSummary && (
+                  <span className="inline-flex items-center gap-1 text-purple-300">
+                    <Bot className="h-3 w-3" />
+                    AI summary
+                  </span>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="prose prose-invert max-w-none prose-headings:text-white prose-p:text-slate-200 prose-li:text-slate-200 prose-strong:text-white prose-a:text-blue-300">
+              <ReactMarkdown>{selectedSidebarNote?.content || selectedSidebarNote?.aiSummary || ""}</ReactMarkdown>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* AI QA Panel Sidebar */}
         <AnimatePresence>

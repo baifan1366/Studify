@@ -5,7 +5,7 @@ import { apiKeyManager } from '@/lib/langChain/api-key-manager';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { EDUCATIONAL_SYSTEM_PROMPT } from '@/lib/langChain/educational-ai-policy';
-import { DEFAULT_TEXT_MODEL } from '@/lib/ai/model-policy';
+import { resolveModelForMode } from '@/lib/ai/model-policy';
 
 // Create Supabase client for server-side operations
 const supabase = createClient(
@@ -51,9 +51,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Select model based on AI mode: thinking mode uses THINKING model, fast mode uses FAST model
-    const selectedModel = DEFAULT_TEXT_MODEL;
+    const selectedModel = resolveModelForMode(aiMode);
 
-    console.log(`❓ Q&A request: "${question.substring(0, 100)}..." [${aiMode} mode] [stream: ${stream}]`);
+    console.log(`❓ Q&A request: "${question.substring(0, 100)}..." [${aiMode} mode] [model: ${selectedModel}] [stream: ${stream}]`);
 
     if (stream) {
       return handleStreamingResponse(question, context, aiMode, selectedModel, sessionId, userId);
@@ -67,7 +67,8 @@ export async function POST(request: NextRequest) {
       includeAnalysis,
       conversationContext: context?.map(c => ({ role: c.role, content: c.content })),
       conversationId,
-      model: selectedModel
+      model: selectedModel,
+      aiMode,
     });
 
     const processingTime = Date.now() - startTime;

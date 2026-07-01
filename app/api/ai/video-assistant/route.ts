@@ -4,27 +4,11 @@ import { enhancedAIExecutor } from "@/lib/langChain/tool-calling-integration";
 import { createRateLimitCheck, rateLimitResponse } from "@/lib/ratelimit";
 import { z } from "zod";
 import { normalizeVideoSources } from "@/lib/video-qa/source-normalizer";
+import { resolveModelForMode } from "@/lib/ai/model-policy";
 
 // Get model based on AI mode
 function getModel(mode: 'fast' | 'normal' | 'thinking' = 'normal'): string {
-  let selectedModel: string;
-  
-  if (mode === 'thinking') {
-    selectedModel = process.env.OPENROUTER_MODEL_THINKING || 'deepseek/deepseek-r1';
-    console.log(`🧠 Thinking Mode: Using model ${selectedModel}${process.env.OPENROUTER_MODEL_THINKING ? ' (from env)' : ' (default)'}`);
-  } else if (mode === 'fast') {
-    selectedModel = process.env.OPENROUTER_MODEL_FAST || 'nvidia/nemotron-3-super-120b-a12b:free';
-    console.log(`⚡ Fast Mode: Using model ${selectedModel}${process.env.OPENROUTER_MODEL_FAST ? ' (from env)' : ' (default)'}`);
-  } else {
-    // Normal mode: use THINKING model but without thinking process display
-    selectedModel = process.env.OPENROUTER_MODEL_NORMAL || process.env.OPENROUTER_MODEL_THINKING || 'deepseek/deepseek-r1';
-    const source = process.env.OPENROUTER_MODEL_NORMAL ? 'NORMAL env' : 
-                   process.env.OPENROUTER_MODEL_THINKING ? 'THINKING env' : 
-                   'default';
-    console.log(`⚙️ Normal Mode: Using model ${selectedModel} (from ${source})`);
-  }
-  
-  return selectedModel;
+  return resolveModelForMode(mode);
 }
 
 // Request validation schema for video AI assistant

@@ -132,8 +132,8 @@ export function useStreamingVideoAI(videoContext: VideoContext) {
       abortControllerRef.current = abortController;
       let clientEmbedding: number[] | undefined;
 
-      // Generate client-side embedding for Fast mode
-      if (aiMode === 'fast') {
+      // Every mode starts with client E5. Normal/Thinking add server BGE reranking.
+      if (aiMode) {
         try {
           onStatus?.('Generating embedding...');
           const { generateClientEmbedding } = await import('@/lib/client-embedding');

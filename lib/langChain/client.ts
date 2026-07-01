@@ -95,7 +95,6 @@ const DEFAULT_GROK_CONFIG: GrokConfig = {
   presencePenalty: 0,
   enableReasoning: false, // 默认关闭推理模式以节省成本
   streaming: true, // 启用流式响应提升用户体验
-  timeout: 60000, // 60秒超时
   keySelectionStrategy: "round_robin", // 默认轮询策略
   maxRetries: 3, // 默认重试3次
   enableCache: true, // 默认启用缓存
@@ -156,7 +155,6 @@ export async function getLLM(config: Partial<GrokConfig> = {}) {
     frequencyPenalty: finalConfig.frequencyPenalty,
     presencePenalty: finalConfig.presencePenalty,
     streaming: finalConfig.streaming,
-    timeout: finalConfig.timeout,
     maxRetries: finalConfig.maxRetries,
   };
 
@@ -202,6 +200,7 @@ export function getReasoningLLM(config: Partial<GrokConfig> = {}) {
     enableReasoning: true,
     temperature: 0.1, // 推理模式使用更低的温度
     model:
+      config.model ||
       process.env.OPEN_ROUTER_REASONING_MODEL ||
       process.env.OPEN_ROUTER_MODEL ||
       "nvidia/nemotron-3-super-120b-a12b:free",

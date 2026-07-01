@@ -109,8 +109,8 @@ export function useVideoQAStreaming() {
       abortControllerRef.current = controller;
       let finalRequest = { ...request, stream: true };
 
-      // Generate client-side embedding for Fast mode
-      if (request.aiMode === 'fast') {
+      // Every mode starts with client E5. Normal/Thinking add server BGE reranking.
+      if (request.aiMode) {
         try {
           const { generateClientEmbedding } = await import('@/lib/client-embedding');
           const result = await generateClientEmbedding(request.question, {
@@ -125,7 +125,7 @@ export function useVideoQAStreaming() {
           };
         } catch (error) {
           console.error('[VideoQA] Failed to generate client embedding:', error);
-          finalRequest.aiMode = 'normal';
+          if (request.aiMode === 'fast') finalRequest.aiMode = 'normal';
         }
       }
 
@@ -246,8 +246,8 @@ export function useVideoQA() {
     mutationFn: async (request: VideoQARequest): Promise<VideoQAResponse> => {
       let finalRequest = { ...request };
 
-      // Generate client-side embedding for Fast mode
-      if (request.aiMode === 'fast') {
+      // Every mode starts with client E5. Normal/Thinking add server BGE reranking.
+      if (request.aiMode) {
         try {
           const { generateClientEmbedding } = await import('@/lib/client-embedding');
           const result = await generateClientEmbedding(request.question, {
@@ -262,14 +262,15 @@ export function useVideoQA() {
             clientEmbedding: result.embedding,
           } as any;
         } catch (error) {
-          console.error('[VideoQA] Failed to generate client embedding, falling back to Normal mode:', error);
-          // Fallback to Normal mode if client embedding fails
-          finalRequest.aiMode = 'normal';
-          toast({
-            title: 'Switched to Normal Mode',
-            description: 'Client embedding generation failed, using server-side processing',
-            duration: 3000,
-          });
+          console.error('[VideoQA] Failed to generate client embedding, using server embeddings:', error);
+          if (request.aiMode === 'fast') {
+            finalRequest.aiMode = 'normal';
+            toast({
+              title: 'Switched to Normal Mode',
+              description: 'Client embedding generation failed, using server-side processing',
+              duration: 3000,
+            });
+          }
         }
       }
 

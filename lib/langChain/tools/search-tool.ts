@@ -149,13 +149,13 @@ async function searchVideoEmbeddings(
       console.log(`⚡ Fast Mode: Using client E5 embedding (${clientEmbedding.length} dims)`);
       e5Embedding = clientEmbedding;
       // No BGE embedding in Fast mode
-    } else if (searchMode === 'thinking' && clientEmbedding) {
-      // Thinking Mode: Use client E5 + server BGE
-      console.log(`🧠 Thinking Mode: Using client E5 + server BGE`);
+    } else if ((searchMode === 'normal' || searchMode === 'thinking') && clientEmbedding) {
+      // Normal and Thinking share hybrid retrieval; only LLM reasoning differs.
+      console.log(`🧠 ${searchMode === 'thinking' ? 'Thinking' : 'Normal'} Mode: Using client E5 + server BGE`);
       e5Embedding = clientEmbedding;
       const bgeResult = await generateEmbedding(query, 'bge', 'query');
       bgeEmbedding = bgeResult.embedding;
-      console.log(`✅ Thinking Mode: E5 from client (${e5Embedding.length}D), BGE from server (${bgeEmbedding.length}D)`);
+      console.log(`✅ ${searchMode === 'thinking' ? 'Thinking' : 'Normal'} Mode: E5 from client (${e5Embedding.length}D), BGE from server (${bgeEmbedding.length}D)`);
     } else {
       // Normal Mode: Generate both embeddings on server
       console.log(`⚙️ Normal Mode: Generating both E5 and BGE embeddings on server`);
@@ -860,12 +860,12 @@ async function searchDocumentEmbeddings(
     if (searchMode === 'fast' && clientEmbedding) {
       console.log(`⚡ Fast Mode (Document): Using client E5 embedding (${clientEmbedding.length} dims)`);
       e5Embedding = clientEmbedding;
-    } else if (searchMode === 'thinking' && clientEmbedding) {
-      console.log(`🧠 Thinking Mode (Document): Using client E5 + server BGE`);
+    } else if ((searchMode === 'normal' || searchMode === 'thinking') && clientEmbedding) {
+      console.log(`🧠 ${searchMode === 'thinking' ? 'Thinking' : 'Normal'} Mode (Document): Using client E5 + server BGE`);
       e5Embedding = clientEmbedding;
       const bgeResult = await generateEmbedding(query, 'bge', 'query');
       bgeEmbedding = bgeResult.embedding;
-      console.log(`✅ Thinking Mode: E5 from client (${e5Embedding.length}D), BGE from server (${bgeEmbedding.length}D)`);
+      console.log(`✅ ${searchMode === 'thinking' ? 'Thinking' : 'Normal'} Mode: E5 from client (${e5Embedding.length}D), BGE from server (${bgeEmbedding.length}D)`);
     } else {
       console.log(`⚙️ Normal Mode (Document): Generating both E5 and BGE embeddings on server`);
       const e5Result = await generateEmbedding(query, 'e5', 'query');

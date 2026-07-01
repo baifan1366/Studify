@@ -630,7 +630,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
       let searchResults = "";
       let searchCompleted = false;
       
-      // Promise 1: Search with timeout
+      // Promise 1: Search
       const searchPromise = (async () => {
         const searchTool = getToolByName("search");
         if (!searchTool || (!videoContext && !options.contentTypes)) {
@@ -648,14 +648,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
         };
 
         try {
-          const searchTimeout = new Promise<string>((_, reject) => 
-            setTimeout(() => reject(new Error('Search timeout after 60s')), 60000) // Reduced to 60s
-          );
-          
-          const result = await Promise.race([
-            (searchTool as any).call(searchInput),
-            searchTimeout
-          ]) as string;
+          const result = await (searchTool as any).call(searchInput) as string;
           
           const searchTime = Date.now() - searchStartTime;
           timings.search = searchTime;
@@ -682,10 +675,12 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
           const selectedModel = options.model || process.env.OPEN_ROUTER_MODEL || "nvidia/nemotron-3-super-120b-a12b:free";
           console.log(`🎯 [${Date.now()}] Using model for fallback: ${selectedModel}`);
           
-          const llm = await getLLM({
-            model: selectedModel,
-            temperature: 0.3,
-          });
+          const llm = options.aiMode === "thinking"
+            ? await getReasoningLLM({ model: selectedModel })
+            : await getLLM({
+                model: selectedModel,
+                temperature: 0.3,
+              });
           
           const llmStartTime = Date.now();
           console.log(`📡 [${Date.now()}] LLM instance created, invoking...`);
@@ -697,17 +692,10 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
               : undefined,
           });
 
-          const fallbackTimeout = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Fallback LLM timeout after 90s')), 90000)
-          );
-          
-          const result: any = await Promise.race([
-            llm.invoke([
+          const result: any = await llm.invoke([
               createEducationalSystemMessage(),
               new HumanMessage(fallbackPrompt),
-            ]),
-            fallbackTimeout
-          ]);
+            ]);
           
           const llmTime = Date.now() - llmStartTime;
           const totalFallbackTime = Date.now() - fallbackStartTime;
@@ -740,19 +728,8 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
       // Wait for EITHER search to complete OR fallback to be ready (whichever is first)
       console.log(`⏳ [${Date.now()}] Waiting for search or fallback...`);
       
-      // Race: Get fallback answer first, then optionally enhance with search
       let fallbackAnswer = "";
-      console.log(`✅ [${Date.now()}] Got fallback answer: ${fallbackAnswer.length} chars`);
-      
-      // Try to get search results (with short timeout since we already have an answer)
-      const quickSearchTimeout = new Promise<string>((resolve) => 
-        setTimeout(() => {
-          console.log(`⏰ [${Date.now()}] Quick search timeout, using fallback only`);
-          resolve("");
-        }, 15000) // Increased to 15 seconds for search (was 5 seconds)
-      );
-      
-      searchResults = await Promise.race([searchPromise, quickSearchTimeout]);
+      searchResults = await searchPromise;
 
       const internalEvidence = parseSearchEvidence(searchResults);
       if (internalEvidence.count === 0) {
@@ -827,13 +804,16 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
         const enhanceStartTime = Date.now();
         
         try {
-          const synthesisLlm = await getLLM({
-            model:
-              options.model ||
-              process.env.OPEN_ROUTER_MODEL ||
-              "nvidia/nemotron-3-super-120b-a12b:free",
-            temperature: 0.3,
-          });
+          const synthesisModel =
+            options.model ||
+            process.env.OPEN_ROUTER_MODEL ||
+            "nvidia/nemotron-3-super-120b-a12b:free";
+          const synthesisLlm = options.aiMode === "thinking"
+            ? await getReasoningLLM({ model: synthesisModel })
+            : await getLLM({
+                model: synthesisModel,
+                temperature: 0.3,
+              });
           {
             const enhancedPrompt = buildGroundedQuestion({
               question,
@@ -843,17 +823,10 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
                 webSources.length > 0 ? webSearchResults : undefined,
             });
 
-            const enhanceTimeout = new Promise ((_, reject) => 
-              setTimeout(() => reject(new Error('Enhancement timeout')), 120000) // Increased to 120 seconds (2 minutes)
-            );
-            
-            const enhanced = await Promise.race([
-              synthesisLlm.invoke([
+            const enhanced = await synthesisLlm.invoke([
                 createEducationalSystemMessage(),
                 new HumanMessage(enhancedPrompt),
-              ]),
-              enhanceTimeout
-            ]);
+              ]);
             
             const enhanceTime = Date.now() - enhanceStartTime;
             timings.enhancement = enhanceTime;
@@ -864,6 +837,15 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
               typeof (enhanced as any).content === "string"
                 ? (enhanced as any).content
                 : JSON.stringify((enhanced as any).content);
+            if (options.aiMode === "thinking") {
+              const enhancedReasoning =
+                (enhanced as any).reasoning ||
+                (enhanced as any).response_metadata?.reasoning ||
+                (enhanced as any).additional_kwargs?.reasoning;
+              if (typeof enhancedReasoning === "string" && enhancedReasoning.trim()) {
+                thinkingProcess = enhancedReasoning;
+              }
+            }
             
             return {
               answer: enhancedAnswer,
@@ -1025,18 +1007,8 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
         });
 
         try {
-          console.log(`⏱️ [${Date.now()}] Calling search tool with 60s timeout...`);
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => {
-              console.error(`⏰ [${Date.now()}] Search timeout triggered after 60s`);
-              reject(new Error('Search timeout after 60s'));
-            }, 60000) // 60 second timeout
-          );
-          
-          const result = await Promise.race([
-            (searchTool as any).call(searchInput),
-            timeoutPromise
-          ]) as string;
+          console.log(`🔍 [${Date.now()}] Calling search tool...`);
+          const result = await (searchTool as any).call(searchInput) as string;
           
           const searchTime = Date.now() - searchStartTime;
           timings.search = searchTime;
@@ -1058,21 +1030,12 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
         }
       })();
 
-      // Wait briefly for search (max 10 seconds), then proceed with or without results
-      // This gives search time to complete while still providing fast initial response
-      console.log(`⏳ [${Date.now()}] Waiting up to 10s for search results...`);
+      // Wait for search completion. Request lifecycle and provider cancellation
+      // are responsible for termination; this layer does not impose a timer.
+      console.log(`⏳ [${Date.now()}] Waiting for search results...`);
       const quickWaitStartTime = Date.now();
-      
-      const quickSearchPromise = Promise.race([
-        searchPromise,
-        new Promise<string>((resolve) => setTimeout(() => {
-          const waitTime = Date.now() - quickWaitStartTime;
-          console.log(`⏰ [${Date.now()}] Quick search timeout after ${waitTime}ms, proceeding with LLM`);
-          resolve("");
-        }, 10000)) // Wait up to 10 seconds for search
-      ]);
-      
-      searchResults = await quickSearchPromise;
+
+      searchResults = await searchPromise;
       const internalEvidence = parseSearchEvidence(searchResults);
       let webSearchResults = "";
       let webSources: any[] = [];
@@ -1118,8 +1081,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
         console.log(`✅ [${Date.now()}] Quick search SUCCEEDED after ${quickWaitTime}ms`);
         console.log(`📊 [${Date.now()}] Using search results: ${searchResults.length} chars`);
       } else {
-        console.log(`⏭️ [${Date.now()}] Proceeding WITHOUT search results after ${quickWaitTime}ms`);
-        console.log(`💡 [${Date.now()}] Search may still be running in background`);
+        console.log(`⏭️ [${Date.now()}] Search completed without results after ${quickWaitTime}ms`);
       }
 
       // Step 2: Stream answer from LLM
@@ -1217,6 +1179,7 @@ export class EnhancedAIWorkflowExecutor extends StudifyToolCallingAgent {
               }),
               stream: true,
               temperature: 0.3,
+              reasoning: { effort: "high", summary: "detailed" },
             },
           });
           

@@ -6,7 +6,7 @@ import { enhancedAIExecutor } from '@/lib/langChain/tool-calling-integration';
 import { createRateLimitCheck, rateLimitResponse } from '@/lib/ratelimit';
 import { resolveVideoAttachmentId } from '@/lib/video-processing/attachment-resolver';
 import { normalizeVideoSources } from '@/lib/video-qa/source-normalizer';
-import { DEFAULT_TEXT_MODEL } from '@/lib/ai/model-policy';
+import { resolveModelForMode } from '@/lib/ai/model-policy';
 
 // Set max duration to 5 minutes (300 seconds)
 export const maxDuration = 300;
@@ -25,7 +25,7 @@ const debugLog = (message: string, data?: any) => {
 
 // Get model based on AI mode
 function getModel(mode: 'fast' | 'normal' | 'thinking' = 'normal'): string {
-  return DEFAULT_TEXT_MODEL;
+  return resolveModelForMode(mode);
 }
 
 // Helper function to send streaming updates

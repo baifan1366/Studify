@@ -314,6 +314,20 @@ export default function BilibiliVideoPlayer({
     }
   }, [nearbyNotes.length, autoShowNotesSidebar, showNotesSidebar]);
 
+  const closeNotesSidebar = useCallback(() => {
+    // A manual close is an explicit dismissal. Disable auto-show for this
+    // player session so the nearby-note effect does not immediately reopen it.
+    setAutoShowNotesSidebar(false);
+    setShowNotesSidebar(false);
+  }, []);
+
+  const toggleNotesSidebar = useCallback(() => {
+    setShowNotesSidebar((isOpen) => {
+      if (isOpen) setAutoShowNotesSidebar(false);
+      return !isOpen;
+    });
+  }, []);
+
   // Internationalization
   const t = useTranslations('VideoPlayer');
 
@@ -1713,7 +1727,7 @@ export default function BilibiliVideoPlayer({
         case "KeyN":
           e.preventDefault();
           if (lessonId && courseNotes.length > 0) {
-            setShowNotesSidebar(!showNotesSidebar);
+            toggleNotesSidebar();
           }
           break;
         case "KeyH":
@@ -1749,6 +1763,7 @@ export default function BilibiliVideoPlayer({
     courseNotes,
     showNotes,
     showNotesSidebar,
+    toggleNotesSidebar,
     showChapters,
     processedChapters,
     showStats,
@@ -1848,16 +1863,26 @@ export default function BilibiliVideoPlayer({
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
+  const getNotePreview = (note: { content?: string; aiSummary?: string }) => {
+    const source = String(note.aiSummary || note.content || "");
+    const plainText = source
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/[#>*_`~\[\]()!-]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    return plainText.length > 420 ? `${plainText.slice(0, 420).trimEnd()}…` : plainText;
+  };
+
   // These functions are now handled by handleSendDanmaku and handleSendComment above
 
   return (
     <div className="w-full bg-black sm:overflow-hidden sm:rounded-xl">
       {/* Main Container with Video, Notes Sidebar, and QA Panel */}
-      <div className="flex w-full items-stretch transition-all duration-300">
+      <div className="flex w-full items-stretch transition-all duration-300 md:aspect-video md:overflow-hidden">
         {/* Video Player Container */}
         <div
           ref={containerRef}
-          className={`relative aspect-video min-w-0 bg-black group transition-all duration-300 ${
+          className={`relative aspect-video min-w-0 bg-black group transition-all duration-300 md:h-full md:aspect-auto ${
             showNotesSidebar && qaPanel.isOpen
               ? 'w-full md:w-[50%]'
               : showNotesSidebar || qaPanel.isOpen
@@ -2965,8 +2990,8 @@ export default function BilibiliVideoPlayer({
                     </button>
                     {/* Close button */}
                     <button
-                      onClick={() => setShowNotesSidebar(false)}
-                      className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors"
+                      onClick={closeNotesSidebar}
+                      className="flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-slate-700"
                       title={t('close') || '关闭 (N)'}
                     >
                       <X className="w-4 h-4 text-gray-300" />
@@ -3055,9 +3080,9 @@ export default function BilibiliVideoPlayer({
                           </div>
 
                           {/* Note Content */}
-                          <div className="prose prose-sm max-w-none text-gray-300 dark:prose-invert">
-                            <ReactMarkdown>{note.content}</ReactMarkdown>
-                          </div>
+                          <p className="line-clamp-6 text-sm leading-5 text-gray-300">
+                            {getNotePreview(note)}
+                          </p>
 
                           {/* Note Footer */}
                           <div className="mt-3 pt-3 border-t border-slate-700 flex items-center justify-between text-xs text-gray-500">

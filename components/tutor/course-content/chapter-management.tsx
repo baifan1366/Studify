@@ -81,27 +81,42 @@ export default function ChapterManagement({
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingChapters, setIsGeneratingChapters] = useState(false);
+  const [generationStage, setGenerationStage] = useState<'idle' | 'waiting' | 'generating'>('idle');
 
   const handleGenerateChapters = async () => {
     if (chapters.length > 0 && !window.confirm('Replace the existing chapters with AI-generated chapters?')) {
       return;
     }
     setIsGeneratingChapters(true);
+    setGenerationStage('generating');
     try {
-      const response = await fetch(`/api/course-lesson/${lessonId}/generate-chapters`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ replaceExisting: true }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Chapter generation failed');
-      await refetch();
-      setIsExpanded(true);
-      toast.success(`Generated ${data.chapters.length} grounded chapters`);
+      const waitStartedAt = Date.now();
+      while (Date.now() - waitStartedAt < 5 * 60 * 1000) {
+        const response = await fetch(`/api/course-lesson/${lessonId}/generate-chapters`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ replaceExisting: true }),
+        });
+        const data = await response.json();
+
+        if (response.status === 425 && data.code === 'TRANSCRIPT_PROCESSING') {
+          setGenerationStage('waiting');
+          await new Promise((resolve) => setTimeout(resolve, 8000));
+          continue;
+        }
+
+        if (!response.ok) throw new Error(data.error || 'Chapter generation failed');
+        await refetch();
+        setIsExpanded(true);
+        toast.success(`Generated ${data.chapters.length} grounded chapters`);
+        return;
+      }
+      throw new Error('Transcription is taking longer than expected. You can leave this page and try again later.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not generate chapters');
     } finally {
       setIsGeneratingChapters(false);
+      setGenerationStage('idle');
     }
   };
 
@@ -270,7 +285,11 @@ export default function ChapterManagement({
             ) : (
               <Sparkles className="h-4 w-4" />
             )}
-            Generate chapters with AI
+            {generationStage === 'waiting'
+              ? 'Waiting for transcript…'
+              : generationStage === 'generating'
+                ? 'Generating chapters…'
+                : 'Generate chapters with AI'}
           </Button>
           {children || (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

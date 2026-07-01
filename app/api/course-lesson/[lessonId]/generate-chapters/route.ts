@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorize } from "@/utils/auth/server-guard";
-import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/server";
 import { getLLM } from "@/lib/langChain/client";
+import { loadVideoTranscriptSegments } from "@/lib/video-processing/transcript-source";
+import { resolveVideoAttachmentId } from "@/lib/video-processing/attachment-resolver";
 
 type GeneratedChapter = {
   title: string;
@@ -45,12 +47,12 @@ export async function POST(
   try {
     const { lessonId } = await params;
     const body = await request.json().catch(() => ({}));
-    const supabase = await createClient();
+    const supabase = await createAdminClient();
     const ownerId = authResult.user.profile?.id;
     const lessonColumn = /^\d+$/.test(lessonId) ? "id" : "public_id";
     const { data: lesson, error: lessonError } = await supabase
       .from("course_lesson")
-      .select("id, title, duration_sec, transcript, course:course_id(owner_id, status)")
+      .select("id, title, duration_sec, attachments, transcript, course:course_id(owner_id, status)")
       .eq(lessonColumn, lessonId)
       .eq("is_deleted", false)
       .single();
@@ -66,21 +68,61 @@ export async function POST(
       return NextResponse.json({ error: "Chapters can only be generated while the course is inactive" }, { status: 409 });
     }
 
-    const { data: segments } = await supabase
-      .from("video_segments")
-      .select("start_time, end_time, text")
-      .eq("lesson_id", lesson.id)
-      .order("start_time", { ascending: true })
-      .limit(500);
-    if (!segments?.length) {
+    // Whisper writes the current pipeline output to video_embeddings. The legacy
+    // video_segments table is only one possible source, so use the shared resolver.
+    const transcriptSegments = await loadVideoTranscriptSegments(supabase, lesson);
+    const timedSegments = transcriptSegments
+      .filter((segment) => segment.text.trim() && segment.endTime > segment.startTime)
+      .slice(0, 500);
+
+    if (!timedSegments.length) {
+      const attachmentId = await resolveVideoAttachmentId(supabase, lesson.attachments);
+      const { data: processingQueue } = attachmentId
+        ? await supabase
+            .from("video_processing_queue")
+            .select("status, current_step, progress_percentage, error_message")
+            .eq("attachment_id", attachmentId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        : { data: null };
+
+      if (processingQueue && ["pending", "processing", "retrying"].includes(processingQueue.status)) {
+        return NextResponse.json(
+          {
+            error: "The transcript is still being generated. Chapters will be available when Whisper finishes.",
+            code: "TRANSCRIPT_PROCESSING",
+            processing: {
+              status: processingQueue.status,
+              step: processingQueue.current_step,
+              progress: processingQueue.progress_percentage || 0,
+            },
+          },
+          { status: 425, headers: { "Retry-After": "8" } }
+        );
+      }
+
+      if (processingQueue?.status === "failed") {
+        return NextResponse.json(
+          {
+            error: processingQueue.error_message || "Video transcription failed. Retry video processing.",
+            code: "TRANSCRIPT_FAILED",
+          },
+          { status: 422 }
+        );
+      }
+
       return NextResponse.json(
-        { error: "Timed transcript is not ready. Finish video processing before generating chapters." },
-        { status: 409 }
+        {
+          error: "No timed transcript was produced for this video. Retry video processing; manual transcript entry is not required.",
+          code: "TIMED_TRANSCRIPT_MISSING",
+        },
+        { status: 422 }
       );
     }
 
-    const transcript = segments
-      .map((segment) => `[${Math.floor(segment.start_time || 0)}-${Math.ceil(segment.end_time || 0)}s] ${segment.text}`)
+    const transcript = timedSegments
+      .map((segment) => `[${Math.floor(segment.startTime)}-${Math.ceil(segment.endTime)}s] ${segment.text}`)
       .join("\n")
       .slice(0, 42000);
     const model = await getLLM({ streaming: false, temperature: 0.15, maxTokens: 3500 });

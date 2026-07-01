@@ -1851,19 +1851,19 @@ export default function BilibiliVideoPlayer({
   // These functions are now handled by handleSendDanmaku and handleSendComment above
 
   return (
-    <div className="w-full bg-black">
+    <div className="w-full bg-black sm:overflow-hidden sm:rounded-xl">
       {/* Main Container with Video, Notes Sidebar, and QA Panel */}
       <div className="flex w-full items-stretch transition-all duration-300">
         {/* Video Player Container */}
         <div
           ref={containerRef}
-          className={`relative bg-black group transition-all duration-300 ${
+          className={`relative aspect-video min-w-0 bg-black group transition-all duration-300 ${
             showNotesSidebar && qaPanel.isOpen
               ? 'w-full md:w-[50%]'
               : showNotesSidebar || qaPanel.isOpen
               ? 'w-full md:w-[70%]' 
               : 'w-full'
-          } aspect-video`}
+          }`}
           onMouseEnter={() => setShowControls(true)}
           onMouseLeave={() => {
             if (isPlaying) {
@@ -2194,14 +2194,14 @@ export default function BilibiliVideoPlayer({
 
         {/* Top Controls - Always visible for direct videos */}
         {videoSourceInfo.type === "direct" && videoSourceInfo.canPlay && (
-          <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start bg-gradient-to-b from-black/60 to-transparent pointer-events-none z-20">
-            <h2 className="text-white text-lg font-semibold truncate flex-1 mr-4 pointer-events-none">
+          <div className="absolute left-0 right-0 top-0 z-20 flex items-start justify-between bg-gradient-to-b from-black/60 to-transparent p-2.5 pointer-events-none sm:p-4">
+            <h2 className="mr-4 hidden flex-1 truncate text-lg font-semibold text-white pointer-events-none sm:block">
               {title}
             </h2>
-            <div className="flex items-center gap-2 flex-shrink-0 pointer-events-auto">
+            <div className="ml-auto flex flex-shrink-0 items-center gap-1.5 pointer-events-auto sm:gap-2">
               <button
                 onClick={() => setDanmakuEnabled(!danmakuEnabled)}
-                className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${
+                className={`hidden h-10 w-10 rounded-full transition-all duration-200 items-center justify-center sm:flex ${
                   danmakuEnabled
                     ? "bg-blue-600 text-white shadow-lg"
                     : "bg-white/20 text-white/70 hover:bg-white/30 hover:text-white"
@@ -2218,7 +2218,7 @@ export default function BilibiliVideoPlayer({
                   }
                   setSubtitlesEnabled(!subtitlesEnabled);
                 }}
-                className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${
+                className={`flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200 ${
                   subtitlesEnabled
                     ? "bg-blue-600 text-white shadow-lg"
                     : "bg-white/20 text-white/70 hover:bg-white/30 hover:text-white"
@@ -2229,7 +2229,7 @@ export default function BilibiliVideoPlayer({
               </button>
               <button
                 onClick={() => setShowTranslationMenu((open) => !open)}
-                className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${
+                className={`hidden h-10 w-10 rounded-full transition-all duration-200 items-center justify-center min-[420px]:flex ${
                   autoTranslate
                     ? "bg-blue-600 text-white shadow-lg"
                     : "bg-white/20 text-white/70 hover:bg-white/30 hover:text-white"
@@ -2240,7 +2240,7 @@ export default function BilibiliVideoPlayer({
               </button>
             </div>
             {showTranslationMenu && (
-              <div className="pointer-events-auto absolute right-4 top-14 w-72 rounded-xl border border-white/15 bg-black/90 p-3 text-white shadow-xl backdrop-blur">
+              <div className="pointer-events-auto absolute right-2 top-12 w-[calc(100vw-1rem)] max-w-72 rounded-xl border border-white/15 bg-black/90 p-3 text-white shadow-xl backdrop-blur sm:right-4 sm:top-14">
                 <p className="mb-2 text-xs text-white/70">AI subtitle translation</p>
                 <div className="flex gap-2">
                   <input value={translationLanguage} onChange={(e) => setTranslationLanguage(e.target.value)} placeholder="Any language" className="h-9 min-w-0 flex-1 rounded-lg border border-white/20 bg-white/10 px-2.5 text-sm outline-none" />
@@ -2283,25 +2283,25 @@ export default function BilibiliVideoPlayer({
                 {/* Center Play Button */}
                 {!isPlaying && (
                   <motion.button
-                    className="absolute inset-0 flex items-center justify-center"
+                    className="absolute inset-0 flex items-center justify-center pointer-events-auto"
                     onClick={togglePlay}
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                   >
-                    <div className="bg-white/20 backdrop-blur-sm rounded-full p-6">
-                      <Play size={48} className="text-white ml-2" />
+                    <div className="rounded-full bg-black/45 p-4 backdrop-blur-sm sm:bg-white/20 sm:p-6">
+                      <Play className="ml-1 h-9 w-9 text-white sm:ml-2 sm:h-12 sm:w-12" />
                     </div>
                   </motion.button>
                 )}
 
                 {/* Bottom Controls */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 pointer-events-auto">
+                <div className="absolute bottom-0 left-0 right-0 p-2 pointer-events-auto sm:p-4">
                   {/* Enhanced Progress Bar with Buffering Visualization */}
                   <div
                     ref={progressRef}
-                    className="w-full h-2 bg-white/20 rounded-full cursor-pointer mb-4 group/progress relative overflow-hidden"
+                    className="relative mb-2 h-3 w-full cursor-pointer overflow-hidden rounded-full bg-white/20 group/progress sm:mb-4 sm:h-2"
                     onClick={handleProgressClick}
                   >
                     {/* Buffered Progress (lighter) - Shows what's loaded */}
@@ -2389,10 +2389,10 @@ export default function BilibiliVideoPlayer({
 
                   {/* Control Buttons */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                    <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                       <button
                         onClick={() => skipTime(-10)}
-                        className="text-white hover:text-blue-400 transition-colors"
+                        className="hidden h-11 w-11 items-center justify-center text-white transition-colors hover:text-blue-400 min-[420px]:flex sm:h-auto sm:w-auto"
                         title={t("backward_10s")}
                       >
                         <SkipBack size={24} />
@@ -2400,7 +2400,7 @@ export default function BilibiliVideoPlayer({
 
                       <button
                         onClick={togglePlay}
-                        className="text-white hover:text-blue-400 transition-colors"
+                        className="flex h-11 w-11 items-center justify-center text-white transition-colors hover:text-blue-400 sm:h-auto sm:w-auto"
                         title={t("play_pause_space")}
                       >
                         {isPlaying ? <Pause size={32} /> : <Play size={32} />}
@@ -2408,13 +2408,13 @@ export default function BilibiliVideoPlayer({
 
                       <button
                         onClick={() => skipTime(10)}
-                        className="text-white hover:text-blue-400 transition-colors"
+                        className="hidden h-11 w-11 items-center justify-center text-white transition-colors hover:text-blue-400 min-[420px]:flex sm:h-auto sm:w-auto"
                         title={t("forward_10s")}
                       >
                         <SkipForward size={24} />
                       </button>
 
-                      <div className="flex items-center gap-2">
+                      <div className="hidden items-center gap-2 sm:flex">
                         <button
                           onClick={toggleMute}
                           className="text-white hover:text-blue-400 transition-colors"
@@ -2439,19 +2439,19 @@ export default function BilibiliVideoPlayer({
                         />
                       </div>
 
-                      <div className="flex flex-col items-start">
-                        <span className="text-white text-sm font-mono">
+                      <div className="flex min-w-0 flex-col items-start">
+                        <span className="whitespace-nowrap font-mono text-[11px] text-white sm:text-sm">
                           {formatTime(currentTime)} / {formatTime(duration)}
                         </span>
                         {currentChapter && (
-                          <span className="text-yellow-400 text-xs truncate max-w-[200px]">
+                          <span className="hidden max-w-[200px] truncate text-xs text-yellow-400 sm:block">
                             {currentChapter.title}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex h-9 items-center gap-1 [&>button]:inline-flex [&>button]:h-8 [&>button]:w-8 [&>button]:items-center [&>button]:justify-center [&>div>button]:inline-flex [&>div>button]:h-8 [&>div>button]:w-8 [&>div>button]:items-center [&>div>button]:justify-center">
+                    <div className="flex h-11 items-center gap-0.5 [&>button]:inline-flex [&>button]:h-10 [&>button]:w-10 [&>button]:items-center [&>button]:justify-center [&>div>button]:inline-flex [&>div>button]:h-10 [&>div>button]:w-10 [&>div>button]:items-center [&>div>button]:justify-center sm:h-9 sm:gap-1 sm:[&>button]:h-8 sm:[&>button]:w-8 sm:[&>div>button]:h-8 sm:[&>div>button]:w-8">
                       {/* AI QA Button */}
                       {lessonId && (
                         <button
@@ -2467,18 +2467,20 @@ export default function BilibiliVideoPlayer({
 
                       {/* Terms Indicator */}
                       {lessonId && termsData?.terms && (
-                        <VideoTermsIndicator
-                          termsCount={termsData.terms.length}
-                          onClick={() =>
-                            termsTooltip.showTerms(termsData.terms)
-                          }
-                          isActive={termsTooltip.isVisible}
-                        />
+                        <div className="hidden sm:block">
+                          <VideoTermsIndicator
+                            termsCount={termsData.terms.length}
+                            onClick={() =>
+                              termsTooltip.showTerms(termsData.terms)
+                            }
+                            isActive={termsTooltip.isVisible}
+                          />
+                        </div>
                       )}
 
                       {/* Notes Indicator */}
                       {lessonId && courseNotes.length > 0 && (
-                        <div className="relative">
+                        <div className="relative hidden sm:block">
                           <button
                             onClick={() => setShowNotes(!showNotes)}
                             className={`relative text-white hover:text-yellow-400 transition-colors ${
@@ -2508,7 +2510,7 @@ export default function BilibiliVideoPlayer({
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 20 }}
-                                className="absolute bottom-full right-0 mb-2 w-80 max-h-96 bg-slate-800 rounded-xl border border-slate-600 shadow-xl overflow-hidden z-50"
+                              className="fixed inset-x-2 bottom-2 z-50 max-h-[65dvh] overflow-hidden rounded-xl border border-slate-600 bg-slate-800 shadow-xl sm:absolute sm:inset-x-auto sm:bottom-full sm:right-0 sm:mb-2 sm:w-80 sm:max-h-96"
                               >
                                 {/* Header */}
                                 <div className="flex items-center justify-between p-3 border-b border-slate-600 bg-slate-700">
@@ -2621,7 +2623,7 @@ export default function BilibiliVideoPlayer({
 
                       <button
                         onClick={() => setShowDanmakuInput(!showDanmakuInput)}
-                        className="text-white hover:text-blue-400 transition-colors"
+                        className="hidden text-white transition-colors hover:text-blue-400 sm:inline-flex"
                         title={t("send_danmaku")}
                       >
                         <Send size={20} />
@@ -2629,7 +2631,7 @@ export default function BilibiliVideoPlayer({
 
                       {/* Chapters Button - Show if chapters exist */}
                       {processedChapters.length > 0 && (
-                        <div className="relative">
+                        <div className="relative hidden sm:block">
                           <button
                             onClick={() => setShowChapters(!showChapters)}
                             className={`text-white hover:text-blue-400 transition-colors ${
@@ -2650,7 +2652,7 @@ export default function BilibiliVideoPlayer({
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 10 }}
-                                className="absolute bottom-full right-0 mb-2 bg-black/95 backdrop-blur-md rounded-xl border border-white/20 shadow-2xl overflow-hidden z-50 w-80 max-h-96"
+                                className="fixed inset-x-2 bottom-2 z-50 max-h-[65dvh] overflow-hidden rounded-xl border border-white/20 bg-black/95 shadow-2xl backdrop-blur-md sm:absolute sm:inset-x-auto sm:bottom-full sm:right-0 sm:mb-2 sm:w-80 sm:max-h-96"
                               >
                                 {/* Header */}
                                 <div className="flex items-center justify-between p-3 border-b border-white/20 bg-white/5">
@@ -2768,7 +2770,7 @@ export default function BilibiliVideoPlayer({
                       {hlsRef.current && (
                         <button
                           onClick={() => setShowStats(!showStats)}
-                          className={`text-white hover:text-blue-400 transition-colors ${
+                          className={`hidden text-white hover:text-blue-400 transition-colors sm:inline-flex ${
                             showStats ? 'text-blue-400' : ''
                           }`}
                           title={t("show_stats") || "Show Stats (Shift+S)"}
@@ -2937,7 +2939,7 @@ export default function BilibiliVideoPlayer({
               animate={{ opacity: 1, x: 0, width: qaPanel.isOpen ? '25%' : '30%' }}
               exit={{ opacity: 0, x: 50, width: 0 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="min-h-0 flex-shrink-0 flex flex-col overflow-hidden border-l border-slate-700 bg-slate-900"
+              className="fixed inset-x-0 bottom-0 top-[35dvh] z-50 !flex !w-full min-h-0 flex-shrink-0 flex-col overflow-hidden border-t border-slate-700 bg-slate-900 shadow-2xl md:static md:!w-[25%] md:border-l md:border-t-0 md:shadow-none"
             >
               {/* Sidebar Header */}
               <div className="shrink-0 border-b border-slate-700 bg-slate-800 p-4">
@@ -3114,7 +3116,7 @@ export default function BilibiliVideoPlayer({
               animate={{ opacity: 1, x: 0, width: showNotesSidebar ? '25%' : '30%' }}
               exit={{ opacity: 0, x: 50, width: 0 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="min-h-0 flex-shrink-0 flex flex-col overflow-hidden border-l border-slate-700 bg-slate-900"
+              className="fixed inset-x-0 bottom-0 top-[35dvh] z-50 !flex !w-full min-h-0 flex-shrink-0 flex-col overflow-hidden border-t border-slate-700 bg-slate-900 shadow-2xl md:static md:!w-[25%] md:border-l md:border-t-0 md:shadow-none"
             >
               <VideoQAPanel
                 lessonId={lessonId}
@@ -3135,13 +3137,13 @@ export default function BilibiliVideoPlayer({
       </div>
 
       {/* Video Info and Actions */}
-      <div className="bg-white dark:bg-gray-900 p-6">
-        <div className="flex items-start justify-between mb-4">
+      <div className="bg-white p-3 dark:bg-gray-900 sm:p-6">
+        <div className="mb-2 flex flex-col gap-3 sm:mb-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex-1">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+            <h1 className="mb-1 text-base font-bold text-gray-900 dark:text-white sm:mb-2 sm:text-xl">
               {title}
             </h1>
-            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400 sm:gap-4 sm:text-sm">
               {videoStats && (
                 <>
                   <span>
@@ -3154,10 +3156,10 @@ export default function BilibiliVideoPlayer({
               )}
             </div>
           </div>
-          <div className="flex min-h-10 flex-wrap items-center justify-end gap-2">
+          <div className="-mx-1 flex min-h-11 items-center gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:flex-wrap sm:justify-end sm:overflow-visible sm:px-0 sm:pb-0">
             <button
               onClick={handleLike}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              className={`flex h-10 shrink-0 items-center gap-2 rounded-full px-4 py-2 transition-colors sm:rounded-lg ${
                 isLiked || currentUserLiked
                   ? "bg-red-500 hover:bg-red-600 text-white"
                   : "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
@@ -3174,14 +3176,14 @@ export default function BilibiliVideoPlayer({
             </button>
             <button
               onClick={handleShare}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-lg transition-colors"
+              className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-gray-100 px-4 py-2 text-gray-900 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 sm:rounded-lg"
             >
               <Share2 size={16} />
               <span>{t("share")}</span>
             </button>
             <button
               onClick={handleDownload}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-lg transition-colors"
+              className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-gray-100 px-4 py-2 text-gray-900 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 sm:rounded-lg"
             >
               <Download size={16} />
               <span>{t("download")}</span>
@@ -3199,7 +3201,7 @@ export default function BilibiliVideoPlayer({
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
           >
-            <div className="p-6">
+            <div className="p-3 sm:p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   {t("comments")}{" "}

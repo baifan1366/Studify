@@ -948,15 +948,15 @@ export default function CourseLearningContent({
   return (
     <div className="w-full">
       {/* Course Information Header */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
-        <div className="p-4 lg:p-6">
+      <div className="mb-3 rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:mb-6">
+        <div className="p-3 sm:p-4 lg:p-6">
           {/* Course Title and Basic Info */}
-          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+          <div className="flex flex-col gap-3 sm:gap-4 lg:mb-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex-1">
-              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white sm:text-2xl lg:text-3xl">
                 {course.title}
               </h1>
-              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600 dark:text-gray-400 sm:mt-2 sm:gap-4 sm:text-sm">
                 {course.level && (
                   <div className="flex items-center gap-1">
                     <Target size={16} />
@@ -998,7 +998,7 @@ export default function CourseLearningContent({
             </div>
 
             {/* Price Badge */}
-            <div className="flex items-center gap-2">
+            <div className="hidden items-center gap-2 sm:flex">
               <div
                 className={`px-3 py-1 rounded-full text-sm font-medium ${
                   course.price_cents === 0
@@ -1013,7 +1013,7 @@ export default function CourseLearningContent({
 
           {/* Course Description */}
           {course.description && (
-            <div className="mb-6">
+            <div className="mb-6 hidden sm:block">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
                 <Info size={18} />
                 {t("CourseLearning.description")}
@@ -1025,7 +1025,7 @@ export default function CourseLearningContent({
           )}
 
           {/* Additional Course Info Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          <div className="mb-6 hidden grid-cols-1 gap-4 sm:grid md:grid-cols-2 lg:grid-cols-3">
             {/* Requirements */}
             {course.requirements && course.requirements.length > 0 && (
               <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
@@ -1119,7 +1119,7 @@ export default function CourseLearningContent({
       </div>
 
       {/* Content Display */}
-      <div className="mb-6">
+      <div className="-mx-4 mb-4 sm:mx-0 sm:mb-6 [&>div]:sticky [&>div]:top-0 [&>div]:z-30 sm:[&>div]:static">
         {/* 1. Image with MEGA attachment - use MegaImage */}
         {currentLesson?.kind === "image" && attachmentId && attachment?.url ? (
           <div className="w-full bg-gray-50 dark:bg-gray-900 rounded-lg p-4 flex items-center justify-center min-h-[400px]">
@@ -1249,8 +1249,8 @@ export default function CourseLearningContent({
       </div>
 
       {currentLesson?.kind === "video" && (
-        <section className="mb-6 grid gap-4 lg:grid-cols-[1.35fr_1fr]">
-          <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+        <section className="mb-4 grid gap-3 sm:mb-6 sm:gap-4 lg:grid-cols-[1.35fr_1fr]">
+          <div className="rounded-xl border border-border bg-card p-3 shadow-sm sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex items-start gap-3">
                 <div className="rounded-lg bg-orange-500/10 p-2 text-orange-500">
@@ -1298,7 +1298,7 @@ export default function CourseLearningContent({
             </ul>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+          <div className="rounded-xl border border-border bg-card p-3 shadow-sm sm:p-5">
             <div className="flex items-start gap-3">
               <div className="rounded-lg bg-blue-500/10 p-2 text-blue-500">
                 <SkipForward className="h-5 w-5" />
@@ -1355,7 +1355,7 @@ export default function CourseLearningContent({
       )}
 
       {/* Lesson Navigation */}
-      <div className="flex flex-col sm:flex-row items-center justify-between mb-6 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 lg:p-4 gap-3 sm:gap-4">
+      <div className="mb-4 grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded-lg border border-gray-200 bg-white p-2 shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:mb-6 sm:flex sm:gap-4 sm:p-3 lg:p-4">
         <Button
           onClick={handlePreviousLesson}
           disabled={
@@ -1369,11 +1369,11 @@ export default function CourseLearningContent({
           <span className="hidden sm:inline">
             {t("LessonNavigation.previous_lesson")}
           </span>
-          <span className="sm:hidden">Prev</span>
+          <span className="sr-only sm:hidden">Prev</span>
         </Button>
 
         <div className="text-center flex-1 min-w-0">
-          <h2 className="text-base lg:text-lg font-semibold text-gray-900 dark:text-white truncate max-w-full">
+          <h2 className="max-w-full truncate text-sm font-semibold text-gray-900 dark:text-white sm:text-base lg:text-lg">
             {currentLesson?.title}
           </h2>
           {currentLesson?.moduleTitle && (
@@ -1403,7 +1403,7 @@ export default function CourseLearningContent({
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mt-2">
+          <div className="mt-2 hidden flex-col items-center justify-center gap-2 sm:flex sm:flex-row sm:gap-4">
             <div className="text-xs text-gray-500 dark:text-gray-400">
               {t("LessonNavigation.duration", {
                 minutes: currentLesson?.duration_sec
@@ -1445,22 +1445,22 @@ export default function CourseLearningContent({
           <span className="hidden sm:inline">
             {t("LessonNavigation.next_lesson")}
           </span>
-          <span className="sm:hidden">Next</span>
+          <span className="sr-only sm:hidden">Next</span>
           <ChevronRight size={16} />
         </Button>
       </div>
 
       {/* Mobile Tool Bar - Only visible on mobile */}
       {isMobileView && (
-        <div className="lg:hidden mb-4">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3">
-            <div className="flex items-center justify-between gap-2">
+        <div className="sticky bottom-3 z-30 mb-4 lg:hidden">
+          <div className="rounded-2xl border border-gray-200/80 bg-white/95 p-1.5 shadow-xl backdrop-blur-xl dark:border-gray-700 dark:bg-gray-900/95">
+            <div className="flex items-center justify-between gap-1">
               {/* Course Content Toggle */}
               <Button
                 onClick={() => setShowCourseContent(!showCourseContent)}
                 variant="ghost"
                 size="sm"
-                className="flex-1 justify-center gap-2 text-xs sm:text-sm"
+                className="h-11 flex-1 justify-center gap-1.5 text-xs"
               >
                 {showCourseContent ? (
                   <PanelLeftClose size={16} />
@@ -1477,7 +1477,7 @@ export default function CourseLearningContent({
                 onClick={() => setShowToolPanel(!showToolPanel)}
                 variant="ghost"
                 size="sm"
-                className="flex-1 justify-center gap-2 text-xs sm:text-sm"
+                className="h-11 flex-1 justify-center gap-1.5 text-xs"
               >
                 <Layers size={16} />
                 <span className="truncate">
@@ -1486,7 +1486,7 @@ export default function CourseLearningContent({
               </Button>
 
               {/* Quick Tab Access */}
-              <div className="flex items-center gap-1 flex-1 justify-center">
+              <div className="flex flex-[1.4] items-center justify-around gap-0.5">
                 {currentLesson?.kind === "video" && (
                   <Button
                     onClick={() => {
@@ -1686,7 +1686,7 @@ export default function CourseLearningContent({
               : "scale-100 opacity-100"
           } ${
             isMobileView
-              ? "fixed inset-x-4 top-16 bottom-16 z-50 flex flex-col max-h-[80vh]"
+              ? "fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] flex-col rounded-t-2xl border-x-0 border-b-0 shadow-2xl"
               : ""
           }`}
         >
@@ -1709,8 +1709,8 @@ export default function CourseLearningContent({
 
           {/* Tabs */}
           <div
-            className={`flex flex-wrap border-b border-gray-200 dark:border-gray-700 ${
-              isMobileView ? "px-3 flex-shrink-0" : ""
+            className={`flex border-b border-gray-200 dark:border-gray-700 ${
+              isMobileView ? "flex-shrink-0 overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" : "flex-wrap"
             }`}
           >
             {/* Chapters Tab - Only show for video lessons */}
@@ -1787,7 +1787,7 @@ export default function CourseLearningContent({
           <div
             className={`p-3 lg:p-4 overflow-y-auto ${
               isMobileView
-              ? "flex-1 min-h-0 max-h-[calc(80vh-8rem)]"
+              ? "flex-1 min-h-0 max-h-[calc(88dvh-7rem)] overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom))]"
                 : activeTab === "ai"
                   ? "max-h-none overflow-visible"
                   : activeTab === "mindmap"

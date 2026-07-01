@@ -842,6 +842,7 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen, initialQue
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const skipNextSessionHydrationRef = useRef(false);
 
   useEffect(() => {
     if (initialQuestion) {
@@ -856,6 +857,11 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen, initialQue
   // Load session messages when session changes
   useEffect(() => {
     if (!isTyping && !isStreaming && sessionData?.messages) {
+      if (skipNextSessionHydrationRef.current) {
+        skipNextSessionHydrationRef.current = false;
+        return;
+      }
+
       const loadedMessages: ChatMessage[] = sessionData.messages.map((msg: any) => ({
         id: msg.id.toString(),
         type: msg.role === 'user' ? 'user' : 'ai',
@@ -961,7 +967,7 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen, initialQue
         }));
 
       // Real-time streaming with sessionId
-      await streamQA(
+      const streamResult = await streamQA(
         {
           question: userMessage.content,
           context: conversationContext,
@@ -1032,10 +1038,19 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen, initialQue
           }
         }
       );
-      // The stream closes only after the server has persisted this turn.
-      await queryClient.invalidateQueries({ queryKey: ['qa-sessions'] });
-      if (activeSessionId) {
-        await queryClient.invalidateQueries({ queryKey: ['qa-session-messages', activeSessionId] });
+      if (streamResult?.persisted !== false) {
+        // The stream closes only after the server has persisted this turn.
+        await queryClient.invalidateQueries({ queryKey: ['qa-sessions'] });
+        if (activeSessionId) {
+          await queryClient.invalidateQueries({ queryKey: ['qa-session-messages', activeSessionId] });
+        }
+      } else {
+        skipNextSessionHydrationRef.current = true;
+        toast({
+          title: t('chat.error.title'),
+          description: 'AI response was shown, but it could not be saved to chat history. Please copy it before switching sessions.',
+          variant: "destructive"
+        });
       }
       // Do not let stale session data replace the streamed response while the
       // completed turn is still being refetched from persistence.

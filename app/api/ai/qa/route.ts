@@ -336,24 +336,13 @@ async function handleStreamingResponse(
             await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'reasoning_details', content: reasoningDetails })}\n\n`));
           }
 
-          // Send completion message
-          await writer.write(encoder.encode(`data: ${JSON.stringify({
-            type: 'done',
-            content: '',
-            metadata: {
-              thinkingLength: thinkingContent.length,
-              answerLength: answerContent.length,
-              hasReasoningDetails: reasoningDetails.length > 0,
-              totalChunks: chunkCount,
-              streamDuration: Date.now() - streamStartTime
-            }
-          })}\n\n`));
-
           console.log(`✅ SDK Streaming completed: ${chunkCount} chunks, thinking: ${thinkingContent.length}, answer: ${answerContent.length}, duration: ${Date.now() - streamStartTime}ms`);
 
           if (keyName && hasContent) {
             await apiKeyManager.recordUsage(keyName, true);
           }
+
+          let persisted = !sessionId;
 
           // Await persistence so serverless runtimes cannot terminate before
           // the conversation history is written.
@@ -375,29 +364,25 @@ async function handleStreamingResponse(
 
                 const numericSessionId = session.id;
 
-                // Save user message
-                const { error: userMessageError } = await supabase
+                const { error: turnInsertError } = await supabase
                   .from('ai_quick_qa_messages')
-                  .insert({
-                    session_id: numericSessionId,
-                    role: 'user',
-                    content: question,
-                    ai_mode: aiMode
-                  });
-                if (userMessageError) throw userMessageError;
-
-                // Save assistant message
-                const { error: assistantMessageError } = await supabase
-                  .from('ai_quick_qa_messages')
-                  .insert({
-                    session_id: numericSessionId,
-                    role: 'assistant',
-                    content: answerContent,
-                    thinking: thinkingContent || null,
-                    reasoning_details: reasoningDetails.length > 0 ? reasoningDetails : null,
-                    ai_mode: aiMode
-                  });
-                if (assistantMessageError) throw assistantMessageError;
+                  .insert([
+                    {
+                      session_id: numericSessionId,
+                      role: 'user',
+                      content: question,
+                      ai_mode: aiMode
+                    },
+                    {
+                      session_id: numericSessionId,
+                      role: 'assistant',
+                      content: answerContent,
+                      thinking: thinkingContent || null,
+                      reasoning_details: reasoningDetails.length > 0 ? reasoningDetails : null,
+                      ai_mode: aiMode
+                    }
+                  ]);
+                if (turnInsertError) throw turnInsertError;
 
                 // Update session updated_at
                 const { error: sessionUpdateError } = await supabase
@@ -405,6 +390,7 @@ async function handleStreamingResponse(
                   .update({ updated_at: new Date().toISOString() })
                   .eq('id', numericSessionId);
                 if (sessionUpdateError) throw sessionUpdateError;
+                persisted = true;
 
                 console.log(`💾 Messages saved to session ${sessionId}`);
               } catch (saveError) {
@@ -412,6 +398,21 @@ async function handleStreamingResponse(
               }
             })();
           }
+
+          // Send completion only after persistence has been attempted. The
+          // client uses this as the safe boundary for refetching chat history.
+          await writer.write(encoder.encode(`data: ${JSON.stringify({
+            type: 'done',
+            content: '',
+            metadata: {
+              thinkingLength: thinkingContent.length,
+              answerLength: answerContent.length,
+              hasReasoningDetails: reasoningDetails.length > 0,
+              totalChunks: chunkCount,
+              streamDuration: Date.now() - streamStartTime,
+              persisted
+            }
+          })}\n\n`));
 
         } catch (error) {
           console.error('❌ SDK Streaming error:', error);

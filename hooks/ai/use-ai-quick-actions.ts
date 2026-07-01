@@ -140,6 +140,7 @@ export function useAIQuickQAStream() {
 
       let buffer = ''; // Buffer for incomplete SSE data
       let completed = false;
+      let persisted = true;
       const completeOnce = () => {
         if (completed) return;
         completed = true;
@@ -203,6 +204,7 @@ export function useAIQuickQAStream() {
                 case 'error':
                   throw new Error(data.content || 'AI streaming failed');
                 case 'done':
+                  persisted = data.metadata?.persisted !== false;
                   // The response body closes after server-side persistence.
                   // That close is the authoritative completion boundary.
                   break;
@@ -211,10 +213,12 @@ export function useAIQuickQAStream() {
           }
         }
       }
+      return { persisted };
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Unknown error');
       setError(error);
       callbacks.onError?.(error);
+      return { persisted: false };
     } finally {
       setIsStreaming(false);
     }

@@ -141,17 +141,17 @@ export function ModuleShowcase() {
   return (
     <section 
       ref={containerRef}
-      className="relative overflow-hidden bg-gradient-to-b from-[#0D1F1A] via-[#0A1613] to-[#0D1F1A] py-24 border-t border-border/10"
+      className="relative overflow-hidden border-y border-slate-200/80 bg-gradient-to-b from-slate-50 via-white to-emerald-50/40 py-24 dark:border-border/10 dark:from-[#0D1F1A] dark:via-[#0A1613] dark:to-[#0D1F1A]"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Decorative ambient background glows */}
       <div 
-        className="absolute -left-48 top-1/4 h-96 w-96 rounded-full blur-[140px] opacity-20 pointer-events-none transition-colors duration-1000"
+        className="pointer-events-none absolute -left-48 top-1/4 h-96 w-96 rounded-full opacity-10 blur-[140px] transition-colors duration-1000 dark:opacity-20"
         style={{ backgroundColor: activeModule.themeColor }}
       />
       <div 
-        className="absolute -right-48 bottom-1/4 h-96 w-96 rounded-full blur-[140px] opacity-20 pointer-events-none transition-colors duration-1000"
+        className="pointer-events-none absolute -right-48 bottom-1/4 h-96 w-96 rounded-full opacity-10 blur-[140px] transition-colors duration-1000 dark:opacity-20"
         style={{ backgroundColor: activeModule.themeColor }}
       />
 
@@ -185,8 +185,8 @@ export function ModuleShowcase() {
                   onClick={() => handleTabSelect(index)}
                   className={`group relative text-left p-6 rounded-2xl border transition-all duration-300 ${
                     isActive 
-                      ? "bg-card border-primary/30 shadow-xl shadow-primary/5" 
-                      : "bg-card/40 border-border/10 hover:border-border/30 hover:bg-card/20"
+                      ? "border-primary/30 bg-white shadow-xl shadow-primary/5 dark:bg-card"
+                      : "border-slate-200/80 bg-white/65 hover:border-slate-300 hover:bg-white dark:border-border/10 dark:bg-card/40 dark:hover:border-border/30 dark:hover:bg-card/60"
                   }`}
                   style={{
                     boxShadow: isActive ? `0 10px 30px -10px ${mod.glowColor}` : "none"
@@ -268,7 +268,7 @@ export function ModuleShowcase() {
           </div>
 
           {/* Right Column: Visual Mockup Viewport */}
-          <div className="relative w-full h-[520px] rounded-3xl border border-border/20 bg-[#071310]/80 shadow-2xl overflow-hidden backdrop-blur-md">
+          <div className="dark relative h-[520px] w-full overflow-hidden rounded-3xl border border-slate-800 bg-[#071310]/95 shadow-2xl shadow-slate-900/15 backdrop-blur-md">
             
             {/* Top Bar of the Mock Window */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border/10 bg-card/30">

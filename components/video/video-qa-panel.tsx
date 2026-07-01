@@ -764,6 +764,7 @@ export function VideoQAPanel({
                 const result = await updateNote.mutateAsync({ noteId: savedNote.id, ...value });
                 setSavedNote(result.note);
                 toast({ title: 'Note updated', description: 'Your Markdown note is synced everywhere.' });
+                setNoteEditorOpen(false);
               }}
             />
           )}

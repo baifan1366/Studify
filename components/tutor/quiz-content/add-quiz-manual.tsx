@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus, Trash2, Move, AlertCircle, Check } from 'lucide-react';
 
@@ -86,6 +86,28 @@ export function AddQuizManual({ lessonId: propLessonId, open, onOpenChange, onSu
     difficulty: 1,
     position: questions.length + 1,
   });
+
+  useEffect(() => {
+    if (propLessonId) {
+      setSelectedLessonId(propLessonId);
+    }
+  }, [propLessonId]);
+
+  useEffect(() => {
+    if (open && questions.length === 0) {
+      setQuestions([{
+        id: `temp-${Date.now()}-${Math.random()}`,
+        question_text: '',
+        question_type: 'multiple_choice',
+        options: ['', '', '', ''],
+        correct_answer: '',
+        explanation: '',
+        points: 1,
+        difficulty: 1,
+        position: 1,
+      }]);
+    }
+  }, [open, questions.length]);
 
   const handleLessonChange = (lessonId: string) => {
     const selectedLesson = allLessons.find(lesson => lesson.id.toString() === lessonId);

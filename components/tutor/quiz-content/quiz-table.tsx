@@ -45,7 +45,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 import { useQuizList } from '@/hooks/course/use-quiz';
@@ -209,33 +208,25 @@ export function QuizTable({ lessonId, showLessonFilter = true }: QuizTableProps)
                 <CardDescription>{t('quiz_management_description')}</CardDescription>
               </div>
               <div className="flex gap-2">
-                <Dialog open={isAddManualOpen} onOpenChange={setIsAddManualOpen}>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      {t('add_manual')}
-                    </Button>
-                  </DialogTrigger>
-                  <AddQuizManual
-                    lessonId={lessonId}
-                    open={isAddManualOpen}
-                    onOpenChange={setIsAddManualOpen}
-                  />
-                </Dialog>
+                <Button onClick={() => setIsAddManualOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t('add_manual')}
+                </Button>
+                <AddQuizManual
+                  lessonId={lessonId}
+                  open={isAddManualOpen}
+                  onOpenChange={setIsAddManualOpen}
+                />
                 
-                <Dialog open={isAddAIOpen} onOpenChange={setIsAddAIOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline">
-                      <Bot className="h-4 w-4 mr-2" />
-                      {t('add_ai')}
-                    </Button>
-                  </DialogTrigger>
-                  <AddQuizAI
-                    lessonId={lessonId}
-                    open={isAddAIOpen}
-                    onOpenChange={setIsAddAIOpen}
-                  />
-                </Dialog>
+                <Button variant="outline" onClick={() => setIsAddAIOpen(true)}>
+                  <Bot className="h-4 w-4 mr-2" />
+                  {t('add_ai')}
+                </Button>
+                <AddQuizAI
+                  lessonId={lessonId}
+                  open={isAddAIOpen}
+                  onOpenChange={setIsAddAIOpen}
+                />
               </div>
             </div>
           </CardHeader>

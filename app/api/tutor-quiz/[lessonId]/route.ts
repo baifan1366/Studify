@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/server";
 import { authorize } from '@/utils/auth/server-guard';
 
 export async function GET(_: Request, { params }: { params: Promise<{ lessonId: string }> }) {
@@ -91,57 +92,51 @@ export async function POST(req: Request, { params }: { params: Promise<{ lessonI
             return authResult;
         }
         
-        const supabase = await createClient();
+        const supabase = await createAdminClient();
         const { lessonId } = await params;
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) {
-            console.log('[TutorQuiz] No authenticated user found');
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const user = authResult.user;
 
         console.log('[TutorQuiz] User authenticated:', user.id, 'creating quiz for lesson:', lessonId);
 
-        // Get user's profile ID
-        const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('user_id', user.id)
-            .single();
-
-        if (profileError) {
-            console.error('[TutorQuiz] Failed to fetch user profile:', profileError);
-            return NextResponse.json(
-                { error: 'Failed to fetch user profile' },
-                { status: 500 }
-            );
+        const profileId = authResult.user.profile?.id;
+        if (!profileId) {
+            return NextResponse.json({ error: 'Tutor profile not found' }, { status: 404 });
         }
-
-        const profileId = profile.id;
         const body = await req.json();
     
-        if (!body.lesson_id) {
-            return NextResponse.json({ error: "lesson_id is required" }, { status: 422 });
+        if (body.lesson_id != null && String(body.lesson_id) !== String(lessonId)) {
+            return NextResponse.json({ error: "lesson_id does not match the request URL" }, { status: 422 });
         }
         
-        // Verify lesson ownership before creating quiz
+        // Fetch the lesson first, then perform an explicit ownership check. Filtering
+        // ownership inside the embedded relation can turn an existing lesson into zero
+        // rows under RLS and results in PGRST116 when `.single()` is used.
         const { data: lesson, error: lessonError } = await supabase
             .from('course_lesson')
             .select(`
                 id,
-                course!inner(
+                course:course_id(
                     id,
                     owner_id
                 )
             `)
             .eq('id', lessonId)
-            .eq('course.owner_id', profileId)
-            .single();
+            .eq('is_deleted', false)
+            .maybeSingle();
         
-        if (lessonError || !lesson) {
+        if (lessonError) {
             console.error('[TutorQuiz] Lesson ownership verification failed:', lessonError);
+            return NextResponse.json({ error: 'Failed to verify lesson ownership' }, { status: 500 });
+        }
+
+        if (!lesson) {
+            return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
+        }
+
+        const course = Array.isArray(lesson.course) ? lesson.course[0] : lesson.course;
+        if (!course || Number(course.owner_id) !== Number(profileId)) {
             return NextResponse.json(
-                { error: 'Lesson not found or access denied' },
+                { error: 'You do not have permission to add quiz questions to this lesson' },
                 { status: 403 }
             );
         }

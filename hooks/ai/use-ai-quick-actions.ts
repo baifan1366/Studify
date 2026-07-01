@@ -203,7 +203,8 @@ export function useAIQuickQAStream() {
                 case 'error':
                   throw new Error(data.content || 'AI streaming failed');
                 case 'done':
-                  completeOnce();
+                  // The response body closes after server-side persistence.
+                  // That close is the authoritative completion boundary.
                   break;
               }
             }

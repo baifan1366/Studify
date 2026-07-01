@@ -1430,14 +1430,14 @@ STEP 1: First, use the analyze_content tool with this JSON input:
     options.learningGoal || "the specified learning goal"
   }. Current level: ${options.currentLevel || "Beginner"}. Time constraint: ${
           options.timeConstraint || "Flexible"
-        }. Include: 1) Learning Summary, 2) structured React Flow mindMap nodes and edges, 3) 6-12 detailed stages with prerequisites, outcomes, practice, checkpoints and mastery criteria, 4) portfolio milestones, 5) database-matchable course recommendations, 6) practice quizzes and review weeks. Do not output Mermaid."
+        }. Include: 1) Learning Summary, 2) a sequential React Flow route whose main chain is root -> stage_1 -> stage_2 -> ... (never a radial root-to-all-stages graph), 3) 6-12 detailed stages with prerequisites, outcomes, practice, checkpoints and mastery criteria, 4) portfolio milestones, 5) database-matchable course recommendations, 6) practice quizzes and review weeks. Every roadmap stage must have a matching graph node and increasing numeric level. Do not output Mermaid."
 }
 
 STEP 2: Based on the tool results, format a comprehensive learning path with:
 
 1. **Learning Summary**: Brief overview of the learning journey and expected outcomes
 
-2. **Interactive Graph**: Return structured mindMap nodes and prerequisite edges for React Flow; never return Mermaid.
+2. **Interactive Route**: Return structured mindMap nodes whose main prerequisite chain follows the roadmap chronologically: root -> stage_1 -> stage_2 -> ...; never return a radial root-to-all graph or Mermaid.
 
 3. **Detailed Roadmap**: Step-by-step breakdown with duration, difficulty, resources
 4. **Recommended Courses**: Specific courses with descriptions and difficulty levels

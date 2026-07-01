@@ -1010,7 +1010,6 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen, initialQue
                 ? { ...msg, isStreaming: false }
                 : msg
             ));
-            setIsTyping(false);
           },
           onError: (error: Error) => {
             console.error('Stream error:', error);
@@ -1034,10 +1033,13 @@ function QuickQACard({ onClose, onResult, onFullscreen, isFullscreen, initialQue
         }
       );
       // The stream closes only after the server has persisted this turn.
-      queryClient.invalidateQueries({ queryKey: ['qa-sessions'] });
+      await queryClient.invalidateQueries({ queryKey: ['qa-sessions'] });
       if (activeSessionId) {
-        queryClient.invalidateQueries({ queryKey: ['qa-session-messages', activeSessionId] });
+        await queryClient.invalidateQueries({ queryKey: ['qa-session-messages', activeSessionId] });
       }
+      // Do not let stale session data replace the streamed response while the
+      // completed turn is still being refetched from persistence.
+      setIsTyping(false);
     } catch (error) {
       console.error('Quick QA error:', error);
       const errorMessage = error instanceof Error ? error.message : t('chat.error.unknown');
@@ -2155,6 +2157,34 @@ function AIResultCard({ type, result, onClose, onTryAgain, onExpand }: AIResultC
   );
 }
 
+function buildSequentialLearningGraph(learningPath: any) {
+  const roadmap = Array.isArray(learningPath?.roadmap) ? learningPath.roadmap : [];
+  if (!roadmap.length) return learningPath?.mindMap;
+
+  const rootId = 'learning_goal';
+  return {
+    nodes: [
+      {
+        id: rootId,
+        label: learningPath.learningGoal || 'Learning goal',
+        description: learningPath.summary,
+        level: 0,
+      },
+      ...roadmap.map((step: any, index: number) => ({
+        id: `route_stage_${index + 1}`,
+        label: step.title || step.step || `Stage ${index + 1}`,
+        description: step.description || step.checkpoint,
+        level: index + 1,
+      })),
+    ],
+    edges: roadmap.map((_: any, index: number) => ({
+      source: index === 0 ? rootId : `route_stage_${index}`,
+      target: `route_stage_${index + 1}`,
+      label: index === 0 ? 'start' : 'next',
+    })),
+  };
+}
+
 // 学习路径可视化组件
 function LearningPathVisualization({ learningPath, learningGoal, currentLevel }: { learningPath: any; learningGoal?: string; currentLevel?: string }) {
   const [activeStep, setActiveStep] = useState<number | null>(null);
@@ -2195,7 +2225,6 @@ function LearningPathVisualization({ learningPath, learningGoal, currentLevel }:
   if (!learningPath) return null;
 
   const { 
-    mindMap,
     roadmap, 
     recommendedCourses = [], 
     quizSuggestions = [], 
@@ -2205,17 +2234,18 @@ function LearningPathVisualization({ learningPath, learningGoal, currentLevel }:
   // Use real recommendations if available, otherwise use AI-generated ones
   const coursesToDisplay = realRecommendations?.courses || recommendedCourses;
   const quizzesToDisplay = realRecommendations?.quizzes || quizSuggestions;
+  const routeGraph = buildSequentialLearningGraph(learningPath);
 
   return (
     <div className="space-y-6">
       {/* Mermaid学习路线图 */}
-      {mindMap?.nodes?.length > 0 && (
+      {routeGraph?.nodes?.length > 0 && (
         <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
           <h3 className="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-200 flex items-center gap-2">
             <Route className="h-5 w-5 text-orange-500" />
             {t('learning_path.roadmap')}
           </h3>
-          <ReactFlowMindMap graph={mindMap} className="h-[560px]" />
+          <ReactFlowMindMap graph={routeGraph} className="h-[560px]" />
         </div>
       )}
 
@@ -2274,6 +2304,38 @@ function LearningPathVisualization({ learningPath, learningGoal, currentLevel }:
                             </Badge>
                           ))}
                         </div>
+                      </div>
+                    )}
+                    {Array.isArray(step.outcomes) && step.outcomes.length > 0 && (
+                      <div className="mt-3">
+                        <h5 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">Learning outcomes</h5>
+                        <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-400">
+                          {step.outcomes.map((outcome: string, idx: number) => (
+                            <li key={idx} className="flex items-start gap-2">
+                              <CheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                              <span>{outcome}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {Array.isArray(step.practiceTasks) && step.practiceTasks.length > 0 && (
+                      <div className="mt-3">
+                        <h5 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">Practice</h5>
+                        <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-400">
+                          {step.practiceTasks.map((task: string, idx: number) => (
+                            <li key={idx} className="flex items-start gap-2">
+                              <ListChecks className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-500" />
+                              <span>{task}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {step.checkpoint && (
+                      <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800/50 dark:bg-amber-900/20 dark:text-amber-100">
+                        <span className="font-medium">Checkpoint: </span>
+                        {step.checkpoint}
                       </div>
                     )}
                   </div>

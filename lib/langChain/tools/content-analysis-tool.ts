@@ -23,7 +23,15 @@ Requirements:
 - Every stage needs measurable outcomes, prerequisites, duration, difficulty, practice tasks, a checkpoint, and mastery criteria.
 - Include at least two portfolio milestones plus review and recovery time.
 - Do not invent course IDs or claim a resource exists. Studify recommendations are matched separately.
-- Create a graph with 10-24 nodes and meaningful prerequisite edges for React Flow. Do not output Mermaid.
+- The graph must read as a learning route, not a radial mind map. Use one
+  start node followed by the roadmap stages in chronological order:
+  root -> stage_1 -> stage_2 -> ... -> stage_n.
+- Every roadmap stage must have one matching graph node. A stage may have up
+  to two child nodes for a checkpoint or portfolio deliverable, but those
+  children must not interrupt the main stage-to-stage route.
+- Use 10-24 nodes total, stable ids, numeric levels that increase along the
+  route, and explicit prerequisite/next-stage edges for React Flow.
+  Do not output Mermaid and do not connect root directly to every stage.
 - Return valid JSON only:
 {"learningGoal":"...","currentLevel":"...","timeConstraint":"...","summary":"...","roadmap":[{"id":"stage_1","title":"...","description":"...","duration":"...","difficulty":"...","prerequisites":["..."],"outcomes":["..."],"practiceTasks":["..."],"checkpoint":"...","masteryCriteria":["..."]}],"mindMap":{"nodes":[{"id":"root","label":"...","description":"...","level":0}],"edges":[{"source":"root","target":"stage_1","label":"prerequisite"}]},"milestones":[{"title":"...","evidence":"...","targetWeek":"..."}],"recommendedCourses":[],"quizSuggestions":[{"title":"...","topics":["..."],"questions":15,"estimatedTime":"20 minutes"}],"studyTips":["..."]}`);
   const raw = typeof response.content === "string"

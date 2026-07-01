@@ -1886,7 +1886,7 @@ export default function BilibiliVideoPlayer({
             showNotesSidebar && qaPanel.isOpen
               ? 'w-full md:w-[50%]'
               : showNotesSidebar || qaPanel.isOpen
-              ? 'w-full md:w-[70%]' 
+              ? 'w-full md:w-[75%]'
               : 'w-full'
           }`}
           onMouseEnter={() => setShowControls(true)}
